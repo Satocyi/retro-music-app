@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Wheel + MemoryCard 静止画プレビュー v0</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f2f2f2;
+      font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+      color: #262626;
+    }
+    /* ホイール＋カード構成の静的イメージ（JS・アニメなし）
+       仕様: _specs/cursor_impl_memory_card_v0.md §4 */
+    .layout {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.25rem;
+    }
+    .card-lines {
+      text-align: center;
+      max-width: 280px;
+    }
+    .card-lines .line1 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 0.35rem;
+    }
+    .card-lines .line2 {
+      font-size: 1rem;
+      font-weight: 500;
+      color: #595959;
+      margin-bottom: 0.25rem;
+    }
+    .card-lines .line3 {
+      font-size: 1rem;
+      font-weight: 400;
+      color: #707070;
+    }
+    .wheel-wrap {
+      position: relative;
+      width: 220px;
+      height: 220px;
+    }
+    .wheel-disk {
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: #e0e0e0;
+      border: 2px solid #737373;
+    }
+    .wheel-center-btn {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #8c8c8c;
+      border: 1px solid #404040;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #1f1f1f;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="layout">
+    <!-- モック1枚目: memory_card_spec_v0 §3 -->
+    <div class="card-lines" aria-hidden="false">
+      <p class="line1">2007年 夏</p>
+      <p class="line2">雨</p>
+      <p class="line3">高校帰り</p>
+    </div>
+    <div class="wheel-wrap">
+      <div class="wheel-disk" aria-label="ホイール操作面イメージ"></div>
+      <div class="wheel-center-btn">OK</div>
+    </div>
+  </main>
+</body>
+</html>
