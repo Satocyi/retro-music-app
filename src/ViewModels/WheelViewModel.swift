@@ -1,12 +1,12 @@
-import Foundation
 import Combine
+import Foundation
 
 // チューニング用定数。実機確認後に調整する。ここ以外に角度の数値を書かない。
 private let notchAngle: Double = 30.0 // degrees
 
 /// ホイールの回転・選択状態（ScrollView / List は使わない）
 final class WheelViewModel: ObservableObject {
-    @Published var items: [WheelItem]
+    @Published var cards: [MemoryCard]
     @Published var selectedIndex: Int
     @Published var wheelAngle: Double
 
@@ -15,29 +15,32 @@ final class WheelViewModel: ObservableObject {
 
     private var notchAccumulator: Double = 0
 
-    init(items: [WheelItem] = WheelMockData.items) {
-        self.items = items
+    init(cards: [MemoryCard] = MemoryCard.mockCards) {
+        self.cards = cards
         self.selectedIndex = 0
         self.wheelAngle = 0
+    }
+
+    var currentCard: MemoryCard {
+        cards[selectedIndex]
     }
 
     /// ホイール回転時に呼ばれる。`delta` は度（degree）。
     func onWheelRotated(delta: Double) {
         wheelAngle += delta
+        let n = cards.count
+        guard n > 0 else { return }
+
         notchAccumulator += delta
 
         while notchAccumulator >= notchAngle {
             notchAccumulator -= notchAngle
-            if selectedIndex < items.count - 1 {
-                selectedIndex += 1
-            }
+            selectedIndex = (selectedIndex + 1) % n
         }
 
         while notchAccumulator <= -notchAngle {
             notchAccumulator += notchAngle
-            if selectedIndex > 0 {
-                selectedIndex -= 1
-            }
+            selectedIndex = (selectedIndex - 1 + n) % n
         }
     }
 
@@ -57,9 +60,10 @@ final class WheelViewModel: ObservableObject {
     }
 
     func onCenterTapped() {
-        guard items.indices.contains(selectedIndex) else { return }
-        let title = items[selectedIndex].title
-        lastCenterTapDescription = "確定: \(title)"
-        print("Wheel center tapped — \(title)")
+        guard cards.indices.contains(selectedIndex) else { return }
+        let card = currentCard
+        lastCenterTapDescription =
+            "確定: \(card.line1) / \(card.line2) / \(card.line3)"
+        print("Selected: \(card.line1) / \(card.line2) / \(card.line3)")
     }
 }

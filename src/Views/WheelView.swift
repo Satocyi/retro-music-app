@@ -13,11 +13,31 @@ struct WheelView: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            Text(currentTitle)
-                .font(.system(.title3, design: .monospaced))
-                .foregroundStyle(Color(white: 0.15))
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 280)
+            Group {
+                if viewModel.cards.isEmpty {
+                    Text("—")
+                        .font(.system(.title3, design: .monospaced))
+                        .foregroundStyle(Color(white: 0.15))
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: 280)
+                } else {
+                    VStack(spacing: 8) {
+                        Text(viewModel.currentCard.line1)
+                            .font(.system(.title2, design: .monospaced).weight(.semibold))
+                            .foregroundStyle(Color(white: 0.12))
+                            .multilineTextAlignment(.center)
+                        Text(viewModel.currentCard.line2)
+                            .font(.system(.body, design: .monospaced).weight(.medium))
+                            .foregroundStyle(Color(white: 0.32))
+                            .multilineTextAlignment(.center)
+                        Text(viewModel.currentCard.line3)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(Color(white: 0.38))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: 280)
+                }
+            }
 
             if !viewModel.lastCenterTapDescription.isEmpty {
                 Text(viewModel.lastCenterTapDescription)
@@ -57,11 +77,6 @@ struct WheelView: View {
         }
         .padding()
         .background(Color(white: 0.95))
-    }
-
-    private var currentTitle: String {
-        guard viewModel.items.indices.contains(viewModel.selectedIndex) else { return "—" }
-        return viewModel.items[viewModel.selectedIndex].title
     }
 
     private var wheelDragGesture: some Gesture {

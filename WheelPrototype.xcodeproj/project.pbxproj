@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		d1483631a28a3c979e2d2c6b /* WheelPrototypeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = c5dd9a0cdf71ed3179eb4908 /* WheelPrototypeApp.swift */; };
 		c78dc739b0d49f22b0dbd0b6 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6613ce866f644657b5b7abd4 /* ContentView.swift */; };
-		fae8cfcf458dc1118dfec1c8 /* WheelItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9fdc75ef8141ea8cdf865b00 /* WheelItem.swift */; };
+		b1ecf19c2b634b6c9d221144 /* MemoryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1ecf19c2b634b6c9d112233 /* MemoryCard.swift */; };
 		1d6ec3ad053d4b4d49bf3b9d /* WheelViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2573c110b5efb15b1d5c9364 /* WheelViewModel.swift */; };
 		15331f93d3a658c2a98e2070 /* WheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8da96ba1414be5bca7b7175f /* WheelView.swift */; };
 /* End PBXBuildFile section */
@@ -18,7 +18,7 @@
 		d1c1d6d9e04fcc01dfaa1eff /* WheelPrototype.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WheelPrototype.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		c5dd9a0cdf71ed3179eb4908 /* WheelPrototypeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelPrototypeApp.swift; sourceTree = "<group>"; };
 		6613ce866f644657b5b7abd4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		9fdc75ef8141ea8cdf865b00 /* WheelItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelItem.swift; sourceTree = "<group>"; };
+		a1ecf19c2b634b6c9d112233 /* MemoryCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCard.swift; sourceTree = "<group>"; };
 		2573c110b5efb15b1d5c9364 /* WheelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelViewModel.swift; sourceTree = "<group>"; };
 		8da96ba1414be5bca7b7175f /* WheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -65,7 +65,7 @@
 		40c0b70d4ea0b6885c24736b /* Models */ = {
 			isa = PBXGroup;
 			children = (
-				9fdc75ef8141ea8cdf865b00 /* WheelItem.swift */,
+				a1ecf19c2b634b6c9d112233 /* MemoryCard.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -164,7 +164,7 @@
 			files = (
 				d1483631a28a3c979e2d2c6b /* WheelPrototypeApp.swift in Sources */,
 				c78dc739b0d49f22b0dbd0b6 /* ContentView.swift in Sources */,
-				fae8cfcf458dc1118dfec1c8 /* WheelItem.swift in Sources */,
+				b1ecf19c2b634b6c9d221144 /* MemoryCard.swift in Sources */,
 				1d6ec3ad053d4b4d49bf3b9d /* WheelViewModel.swift in Sources */,
 				15331f93d3a658c2a98e2070 /* WheelView.swift in Sources */,
 			);
