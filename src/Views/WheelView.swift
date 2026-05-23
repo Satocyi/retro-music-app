@@ -23,15 +23,15 @@ struct WheelView: View {
                 } else {
                     VStack(spacing: 8) {
                         Text(viewModel.currentCard.line1)
-                            .font(.system(.title2, design: .monospaced).weight(.semibold))
+                            .font(.system(.title, design: .monospaced).weight(.semibold))
                             .foregroundStyle(Color(white: 0.12))
                             .multilineTextAlignment(.center)
                         Text(viewModel.currentCard.line2)
-                            .font(.system(.body, design: .monospaced).weight(.medium))
+                            .font(.system(.callout, design: .monospaced).weight(.medium))
                             .foregroundStyle(Color(white: 0.32))
                             .multilineTextAlignment(.center)
                         Text(viewModel.currentCard.line3)
-                            .font(.system(.body, design: .monospaced))
+                            .font(.system(.callout, design: .monospaced))
                             .foregroundStyle(Color(white: 0.38))
                             .multilineTextAlignment(.center)
                     }
