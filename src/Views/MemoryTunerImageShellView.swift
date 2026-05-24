@@ -1,15 +1,16 @@
 import OSLog
 import SwiftUI
 
-/// 参照PNG一枚＋正規化ヒット領域のみの MVP シェル（`WheelViewModel` 非結線）
+/// 参照PNG一枚＋DEBUG可視ボタンによる MVP シェル（`WheelViewModel` 非結線）
 struct MemoryTunerImageShellView: View {
     private static let log = Logger(subsystem: "dev.wheelprototype.app", category: "MemoryTunerShell")
 
 #if DEBUG
-    /// ヒット領域の可視化。位置確認が終わったら `false` に戻す。
+    /// 操作領域の可視化。反応確認が終わるまで `true` のままにする。
     private let showDebugHitAreas = true
 
     @State private var lastGesture: String = "none"
+    @State private var gestureCount: Int = 0
 #endif
 
     /// `deviceImage` 表示矩形を 1×1 としたときの相対矩形（左上原点）
@@ -27,7 +28,6 @@ struct MemoryTunerImageShellView: View {
     private static let wheelNormalizedCenter = CGPoint(x: 0.475, y: 0.620)
     private static let wheelDiameterOnMinSide: CGFloat = 0.52
 
-    private static let wheelDragMinimumDistance: CGFloat = 8
     private static let wheelDebounceSeconds: TimeInterval = 0.15
 
     /// セーフエリア外調整はここだけ触る（仕様 §5）
@@ -56,7 +56,7 @@ struct MemoryTunerImageShellView: View {
     private var debugGestureHUD: some View {
         VStack {
             Spacer()
-            Text("lastGesture=\(lastGesture)")
+            Text("lastGesture=\(lastGesture) (#\(gestureCount))")
                 .font(.footnote.monospaced())
                 .foregroundStyle(.yellow.opacity(0.95))
                 .padding(.horizontal, 12)
@@ -76,57 +76,149 @@ struct MemoryTunerImageShellView: View {
             let minSide = min(w, h)
 
             ZStack(alignment: .topLeading) {
-                wheelDiskLayer(width: w, height: h, minSide: minSide)
+                wheelDiskButton(width: w, height: h, minSide: minSide)
                     .zIndex(0)
 
-                normalizedButtonLayer(Self.menuHit, width: w, height: h, gestureLabel: "menu")
-                    .zIndex(1)
-                normalizedButtonLayer(Self.selectHit, width: w, height: h, gestureLabel: "select")
-                    .zIndex(1)
-                normalizedButtonLayer(Self.generateHit, width: w, height: h, gestureLabel: "generate")
-                    .zIndex(1)
+                debugRectButton(
+                    label: "MENU",
+                    gestureLabel: "menu",
+                    tint: .blue,
+                    rect: Self.menuHit,
+                    width: w,
+                    height: h
+                )
+                .zIndex(1)
+
+                debugRectButton(
+                    label: "選択",
+                    gestureLabel: "select",
+                    tint: .green,
+                    rect: Self.selectHit,
+                    width: w,
+                    height: h
+                )
+                .zIndex(1)
+
+                debugRectButton(
+                    label: "生成",
+                    gestureLabel: "generate",
+                    tint: .orange,
+                    rect: Self.generateHit,
+                    width: w,
+                    height: h
+                )
+                .zIndex(1)
             }
             .frame(width: w, height: h, alignment: .topLeading)
         }
         .allowsHitTesting(true)
     }
 
-    private func normalizedButtonLayer(_ rect: NormalizedHitRect, width w: CGFloat, height h: CGFloat, gestureLabel: String) -> some View {
+#if DEBUG
+    private func debugRectButton(
+        label: String,
+        gestureLabel: String,
+        tint: Color,
+        rect: NormalizedHitRect,
+        width w: CGFloat,
+        height h: CGFloat
+    ) -> some View {
+        let rectWidth = rect.size.width * w
+        let rectHeight = rect.size.height * h
+        let fillOpacity: CGFloat = showDebugHitAreas ? 0.45 : 0.35
+        let strokeOpacity: CGFloat = showDebugHitAreas ? 0.95 : 0.75
+        let strokeWidth: CGFloat = showDebugHitAreas ? 2.5 : 2
+
+        return Button {
+            recordGesture(gestureLabel)
+        } label: {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(tint.opacity(fillOpacity))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(tint.opacity(strokeOpacity), lineWidth: strokeWidth)
+                }
+                .overlay {
+                    Text(label)
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 1, y: 1)
+                }
+                .frame(width: rectWidth, height: rectHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .offset(x: rect.origin.x * w, y: rect.origin.y * h)
+    }
+
+    private func wheelDiskButton(width w: CGFloat, height h: CGFloat, minSide: CGFloat) -> some View {
+        let diameter = Self.wheelDiameterOnMinSide * minSide
+        let cx = Self.wheelNormalizedCenter.x * w
+        let cy = Self.wheelNormalizedCenter.y * h
+        let fillOpacity: CGFloat = showDebugHitAreas ? 0.40 : 0.30
+        let strokeOpacity: CGFloat = showDebugHitAreas ? 0.95 : 0.75
+        let strokeWidth: CGFloat = showDebugHitAreas ? 2.5 : 2
+
+        return Button {
+            emitWheelDebounced()
+        } label: {
+            Circle()
+                .fill(Color.purple.opacity(fillOpacity))
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color.purple.opacity(strokeOpacity), lineWidth: strokeWidth)
+                }
+                .overlay {
+                    Text("WHEEL")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.6), radius: 1, y: 1)
+                }
+                .frame(width: diameter, height: diameter)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .offset(x: cx - diameter / 2, y: cy - diameter / 2)
+    }
+#else
+    private func debugRectButton(
+        label _: String,
+        gestureLabel: String,
+        tint _: Color,
+        rect: NormalizedHitRect,
+        width w: CGFloat,
+        height h: CGFloat
+    ) -> some View {
         let rectWidth = rect.size.width * w
         let rectHeight = rect.size.height * h
 
-        return Rectangle()
-            .fill(debugButtonTint(for: gestureLabel))
-            .frame(width: rectWidth, height: rectHeight)
-            .offset(x: rect.origin.x * w, y: rect.origin.y * h)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                recordGesture(gestureLabel)
-            }
-            .allowsHitTesting(true)
+        return Button {
+            recordGesture(gestureLabel)
+        } label: {
+            Color.clear
+                .frame(width: rectWidth, height: rectHeight)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .offset(x: rect.origin.x * w, y: rect.origin.y * h)
     }
 
-    private func wheelDiskLayer(width w: CGFloat, height h: CGFloat, minSide: CGFloat) -> some View {
+    private func wheelDiskButton(width w: CGFloat, height h: CGFloat, minSide: CGFloat) -> some View {
         let diameter = Self.wheelDiameterOnMinSide * minSide
         let cx = Self.wheelNormalizedCenter.x * w
         let cy = Self.wheelNormalizedCenter.y * h
 
-        return Circle()
-            .fill(debugWheelTint())
-            .frame(width: diameter, height: diameter)
-            .offset(x: cx - diameter / 2, y: cy - diameter / 2)
-            .contentShape(Circle())
-            .onTapGesture {
-                emitWheelDebounced()
-            }
-            .simultaneousGesture(
-                DragGesture(minimumDistance: Self.wheelDragMinimumDistance)
-                    .onChanged { _ in
-                        emitWheelDebounced()
-                    }
-            )
-            .allowsHitTesting(true)
+        return Button {
+            emitWheelDebounced()
+        } label: {
+            Color.clear
+                .frame(width: diameter, height: diameter)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .offset(x: cx - diameter / 2, y: cy - diameter / 2)
     }
+#endif
 
     private func emitWheelDebounced() {
         let now = Date()
@@ -140,27 +232,7 @@ struct MemoryTunerImageShellView: View {
         print("lastGesture=\(name)")
 #if DEBUG
         lastGesture = name
+        gestureCount += 1
 #endif
     }
-
-#if DEBUG
-    private func debugButtonTint(for label: String) -> Color {
-        guard showDebugHitAreas else { return .clear }
-        switch label {
-        case "menu": return Color.blue.opacity(0.2)
-        case "select": return Color.green.opacity(0.2)
-        case "generate": return Color.orange.opacity(0.2)
-        default: return .clear
-        }
-    }
-
-    private func debugWheelTint() -> Color {
-        guard showDebugHitAreas else { return .clear }
-        return Color.purple.opacity(0.2)
-    }
-#else
-    private func debugButtonTint(for _: String) -> Color { .clear }
-
-    private func debugWheelTint() -> Color { .clear }
-#endif
 }
