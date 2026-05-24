@@ -13,6 +13,7 @@
 		1d6ec3ad053d4b4d49bf3b9d /* WheelViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2573c110b5efb15b1d5c9364 /* WheelViewModel.swift */; };
 		15331f93d3a658c2a98e2070 /* WheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8da96ba1414be5bca7b7175f /* WheelView.swift */; };
 		a1f2e3d45b6c708090a1b2c01 /* MemoryTunerImageShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */; };
+		b3c4d5e6f7081920a3b4c5d602 /* MemoryTunerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = b3c4d5e6f7081920a3b4c5d601 /* MemoryTunerView.swift */; };
 		b2f3e456c7d8191a2b3c4d501 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = b2f3e456c7d8191a2b3c4d500 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -25,6 +26,7 @@
 		2573c110b5efb15b1d5c9364 /* WheelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelViewModel.swift; sourceTree = "<group>"; };
 		8da96ba1414be5bca7b7175f /* WheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelView.swift; sourceTree = "<group>"; };
 		a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryTunerImageShellView.swift; sourceTree = "<group>"; };
+		b3c4d5e6f7081920a3b4c5d601 /* MemoryTunerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryTunerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +89,7 @@
 			isa = PBXGroup;
 			children = (
 				a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */,
+				b3c4d5e6f7081920a3b4c5d601 /* MemoryTunerView.swift */,
 				8da96ba1414be5bca7b7175f /* WheelView.swift */,
 			);
 			path = Views;
@@ -175,6 +178,7 @@
 				1d6ec3ad053d4b4d49bf3b9d /* WheelViewModel.swift in Sources */,
 				15331f93d3a658c2a98e2070 /* WheelView.swift in Sources */,
 				a1f2e3d45b6c708090a1b2c01 /* MemoryTunerImageShellView.swift in Sources */,
+				b3c4d5e6f7081920a3b4c5d602 /* MemoryTunerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
