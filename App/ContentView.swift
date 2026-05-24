@@ -8,6 +8,9 @@ struct ContentView: View {
     @StateObject private var viewModel = WheelViewModel()
 
     var body: some View {
-        WheelView(viewModel: viewModel)
+        ZStack {
+            Color(hex: "111113").ignoresSafeArea()
+            WheelView(viewModel: viewModel)
+        }
     }
 }
