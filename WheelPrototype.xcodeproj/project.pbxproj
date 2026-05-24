@@ -12,15 +12,19 @@
 		b1ecf19c2b634b6c9d221144 /* MemoryCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1ecf19c2b634b6c9d112233 /* MemoryCard.swift */; };
 		1d6ec3ad053d4b4d49bf3b9d /* WheelViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2573c110b5efb15b1d5c9364 /* WheelViewModel.swift */; };
 		15331f93d3a658c2a98e2070 /* WheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8da96ba1414be5bca7b7175f /* WheelView.swift */; };
+		a1f2e3d45b6c708090a1b2c01 /* MemoryTunerImageShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */; };
+		b2f3e456c7d8191a2b3c4d501 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = b2f3e456c7d8191a2b3c4d500 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		d1c1d6d9e04fcc01dfaa1eff /* WheelPrototype.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WheelPrototype.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		c5dd9a0cdf71ed3179eb4908 /* WheelPrototypeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelPrototypeApp.swift; sourceTree = "<group>"; };
 		6613ce866f644657b5b7abd4 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		b2f3e456c7d8191a2b3c4d500 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		a1ecf19c2b634b6c9d112233 /* MemoryCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryCard.swift; sourceTree = "<group>"; };
 		2573c110b5efb15b1d5c9364 /* WheelViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelViewModel.swift; sourceTree = "<group>"; };
 		8da96ba1414be5bca7b7175f /* WheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WheelView.swift; sourceTree = "<group>"; };
+		a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryTunerImageShellView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +50,7 @@
 		d6d7bf5690fa5ba14bc53e28 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				b2f3e456c7d8191a2b3c4d500 /* Assets.xcassets */,
 				c5dd9a0cdf71ed3179eb4908 /* WheelPrototypeApp.swift */,
 				6613ce866f644657b5b7abd4 /* ContentView.swift */,
 			);
@@ -81,6 +86,7 @@
 		f9c88774a1167189b87dbe86 /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */,
 				8da96ba1414be5bca7b7175f /* WheelView.swift */,
 			);
 			path = Views;
@@ -152,6 +158,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				b2f3e456c7d8191a2b3c4d501 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -167,6 +174,7 @@
 				b1ecf19c2b634b6c9d221144 /* MemoryCard.swift in Sources */,
 				1d6ec3ad053d4b4d49bf3b9d /* WheelViewModel.swift in Sources */,
 				15331f93d3a658c2a98e2070 /* WheelView.swift in Sources */,
+				a1f2e3d45b6c708090a1b2c01 /* MemoryTunerImageShellView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -1,16 +1,10 @@
 // ContentView.swift
-// WheelView を表示するだけのルートビュー。
-// ナビゲーション・タブ・モーダル等は追加しない。
+// MVP: 画像ベース筐体シェルを表示（`WheelView` / `WheelViewModel` は未使用のまま保持）
 
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var viewModel = WheelViewModel()
-
     var body: some View {
-        ZStack {
-            Color(hex: "111113").ignoresSafeArea()
-            WheelView(viewModel: viewModel)
-        }
+        MemoryTunerImageShellView()
     }
 }

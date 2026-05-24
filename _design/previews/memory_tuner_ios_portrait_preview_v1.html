@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="ja">
+<!--
+  MEMORY TUNER — 左右とも参照 PNG のみ（サイズ・比率・余白の一致確認）
+
+  CSS で筐体等は描画しない。その後 Phase ごとに右だけ差し替え予定。
+  画像: assets/reference_memory_tuner_original.png（524×915）
+-->
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MEMORY TUNER — 参照PNG 左右同一表示チェック</title>
+  <style>
+    :root {
+      --pane-w: clamp(268px, 42vw, 524px);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: clamp(14px, 3vw, 34px);
+      background: #09090d;
+      color: rgba(236, 236, 232, 0.9);
+      font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+    }
+
+    .page {
+      margin: 0 auto;
+      max-width: 1150px;
+    }
+
+    h1 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      margin: 0 0 8px;
+      color: rgba(232, 232, 229, 0.78);
+    }
+
+    .note {
+      font-size: 11.5px;
+      line-height: 1.53;
+      color: rgba(210, 210, 207, 0.66);
+      margin: 0 0 20px;
+      max-width: 72ch;
+    }
+
+    code.path {
+      font-size: 0.93em;
+      color: rgba(225, 225, 220, 0.86);
+      word-break: break-all;
+    }
+
+    .comparison {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: center;
+      gap: clamp(16px, 2.6vw, 36px);
+    }
+
+    /*
+      左右で寸法を揃える主因：同一の flex-basis／max-width／内側クラスチェーン。
+      理由: 「左だけ狭い」「右だけ余白が違う」といった視覚差は、この3つが異なるとだけで再現されます。
+    */
+    figure.panel {
+      margin: 0;
+      width: var(--pane-w);
+      max-width: 524px;
+      flex: 0 1 var(--pane-w);
+    }
+
+    figure.panel figcaption {
+      margin-top: 10px;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      line-height: 1.42;
+      color: rgba(220, 220, 216, 0.62);
+    }
+
+    .photo-shell {
+      display: flow-root;
+      position: relative;
+      width: 100%;
+      line-height: 0;
+      border-radius: 11px;
+      overflow: hidden;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.05),
+        0 26px 58px rgba(0, 0, 0, 0.55);
+    }
+
+    /*
+      縦サイズは画像の固有比に任せる（aspect-ratio ボックスとは二重定義しない）→ 左右とも
+      「同じ pane 幅 × 524:915」のスケーリングのみで完全一致しやすい。
+    */
+    .ref-flat {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+  </style>
+</head>
+
+<body>
+  <main class="page">
+    <h1>MEMORY TUNER — 参照PNG 左右同一マウント確認</h1>
+    <p class="note">
+      現在は<strong>左右とも同一ファイル・同一クラス構成</strong>のみです。
+      表示サイズ・縦横比・パネル外周のシャドウ条件が論理的に対称かを見てください。<br />
+      次フェーズとして、ここより右のみを HTML/CSS で段階置換する想定です（今はしない）。
+    </p>
+
+    <section class="comparison" aria-label="同一PNGの左右比較">
+      <!-- 構造テンプレ：右も左と完全に同一（差分はキャプションのみ） -->
+      <figure class="panel reference-a">
+        <div class="photo-shell">
+          <img
+            class="ref-flat"
+            src="assets/reference_memory_tuner_original.png"
+            alt="MEMORY TUNER（参照PNG A）"
+            width="524"
+            height="915"
+            decoding="sync"
+          />
+        </div>
+        <figcaption>① 参照PNG（ベース）</figcaption>
+      </figure>
+
+      <figure class="panel reference-b mirror">
+        <div class="photo-shell">
+          <img
+            class="ref-flat"
+            src="assets/reference_memory_tuner_original.png"
+            alt="MEMORY TUNER（参照PNG B・同一ソース）"
+            width="524"
+            height="915"
+            decoding="sync"
+          />
+        </div>
+        <figcaption>② 参照PNG（※①と同一ソース・同一スタイル）</figcaption>
+      </figure>
+    </section>
+
+    <p class="note">
+      プレビューを開く：
+      <code class="path">c:\work\retro-music-app\_design\previews\memory_tuner_ios_portrait_preview_v1.html</code>
+    </p>
+  </main>
+</body>
+</html>
