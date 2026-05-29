@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="ja">
+<!--
+  MEMORY TUNER — SwiftUI MemoryTunerView.swift 静的プレビュー v1
+
+  参照: src/Views/MemoryTunerView.swift（操作・DEBUG HUD なし）
+  目的: Mac/Xcode 前に Windows ブラウザで見た目のみ確認
+-->
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MEMORY TUNER — SwiftUI プレビュー v1</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #1c1c1e;
+      color: rgba(46, 58, 44, 0.88);
+      font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+    }
+
+    .page-note {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 10;
+      padding: 8px 14px;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+      line-height: 1.45;
+      color: rgba(200, 200, 196, 0.65);
+      background: rgba(0, 0, 0, 0.55);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      pointer-events: none;
+    }
+
+    .viewport {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 16px 24px;
+    }
+
+    /* ── iPhone 縦画面プレビュー枠（390 × 844） ── */
+    .iphone-preview {
+      --w: 390px;
+      --h: 844px;
+      --device-pad-top: 20px;
+      --device-pad-bottom: 6px;
+      --device-pad-side: 10px;
+      --lcd-h: calc((var(--w) - 56px) * 0.38);
+      --inner-clear: calc(var(--h) - var(--device-pad-top) - var(--device-pad-bottom));
+      --rail-bottom: clamp(134px, 18.95vh, 148px);
+      --wheel-pad-tail: 2px;
+      /* max vertical footprint if width were unbounded — reserve railBottom under wheel */
+      --wheel-cap-v: calc(
+        var(--inner-clear) - var(--lcd-h) - 10px - var(--wheel-pad-tail) - var(--rail-bottom)
+      );
+      --wheel-cap-h: calc(var(--w) - 8px);
+      /* circular reference diameter (width budget); slack taken by vertical stretch, not transforms */
+      --wheel-flat: min(var(--wheel-cap-h), var(--wheel-cap-v));
+      --slack-below-flat: calc(
+        var(--inner-clear) - var(--lcd-h) - 10px - var(--wheel-pad-tail) - var(--wheel-flat)
+      );
+      --stretch-y-cap: clamp(108px, 17.95vh, 148px);
+      --stretch-y: clamp(
+        0px,
+        calc(var(--slack-below-flat) - var(--rail-bottom)),
+        var(--stretch-y-cap)
+      );
+      --bottom-tail: calc(var(--slack-below-flat) - var(--stretch-y));
+      --wheel-d: var(--wheel-flat);
+
+      width: var(--w);
+      height: var(--h);
+      flex-shrink: 0;
+      overflow: hidden;
+      border-radius: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow:
+        0 0 0 1px rgba(0, 0, 0, 0.4),
+        0 24px 48px rgba(0, 0, 0, 0.45);
+    }
+
+    /* ── Device chassis (full-bleed ivory resin) ── */
+    .device {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: linear-gradient(180deg, #f2efe8 0%, #e8e4dc 55%, #ece8e0 100%);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+    }
+
+    .device-inner {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      padding: var(--device-pad-top) var(--device-pad-side) var(--device-pad-bottom);
+    }
+
+    /* ── LCD panel (small, quiet) ── */
+    .lcd {
+      position: relative;
+      width: calc(var(--w) - 56px);
+      max-width: 100%;
+      height: calc((var(--w) - 56px) * 0.38);
+      margin: 0 auto;
+      border-radius: 6px;
+      background: #080a08;
+      overflow: hidden;
+    }
+
+    .lcd-rows {
+      display: flex;
+      flex-direction: column;
+      padding: 14px;
+    }
+
+    .lcd-row {
+      display: flex;
+      align-items: center;
+      padding: 9px 8px;
+    }
+
+    .lcd-row.active {
+      padding: 9px 10px;
+      border-radius: 4px;
+      background: rgba(20, 26, 20, 0.55);
+    }
+
+    .lcd-label {
+      width: 20%;
+      flex-shrink: 0;
+      font: 400 12px/1.3 ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+      color: #2e3a2c;
+    }
+
+    .lcd-row.active .lcd-label {
+      color: #5a7458;
+    }
+
+    .lcd-spacer {
+      flex: 1;
+      min-width: 8px;
+    }
+
+    .lcd-value {
+      font: 500 13px/1.3 ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+      color: #2e3a2c;
+    }
+
+    .lcd-row.active .lcd-value {
+      color: #7a9a6e;
+    }
+
+    .lcd-wheel-gap {
+      height: 10px;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+
+    /* ── Wheel (slack → slight vertical ellipse; lcd↔wheel gap stays 10px layout) ── */
+    .wheel-area {
+      flex: 0 0 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      align-self: center;
+      margin: 0;
+      padding-bottom: var(--wheel-pad-tail);
+    }
+
+    .bottom-fill {
+      flex: none;
+      flex-grow: 0;
+      flex-shrink: 0;
+      min-height: 0;
+      height: var(--bottom-tail);
+    }
+
+    .wheel-wrap {
+      position: relative;
+      width: var(--wheel-flat);
+      height: calc(var(--wheel-flat) + var(--stretch-y));
+      flex-shrink: 0;
+    }
+
+    .wheel-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 1px solid #b8b4ac;
+      background: conic-gradient(
+        from 0deg,
+        #e4e0d8 0deg,
+        #f0ece4 60deg,
+        #dcd8d0 120deg,
+        #ece8e0 180deg,
+        #d8d4cc 240deg,
+        #e4e0d8 360deg
+      );
+    }
+
+    .wheel-dark-ring {
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      border: calc(var(--wheel-d) * 0.088) solid rgba(42, 42, 40, 0.35);
+      pointer-events: none;
+    }
+
+    .wheel-inner {
+      position: absolute;
+      inset: 16%;
+      border-radius: 50%;
+      background: #ece8e0;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+    }
+
+    .wheel-notches {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .wheel-notch {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 1.5px;
+      margin-left: -0.75px;
+      background: #a8a49c;
+      border-radius: 0.5px;
+      transform-origin: center center;
+    }
+
+    .wheel-notch.major {
+      height: 6px;
+      margin-top: -3px;
+    }
+
+    .wheel-notch.minor {
+      height: 4px;
+      margin-top: -2px;
+    }
+
+    .wheel-arrows {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      color: rgba(136, 132, 128, 0.22);
+    }
+
+    .wheel-arrow {
+      position: absolute;
+      width: 7px;
+      height: 6px;
+      left: 50%;
+      top: 50%;
+      margin: -3px -3.5px;
+    }
+
+    .wheel-arrow svg {
+      display: block;
+      width: 7px;
+      height: 6px;
+      fill: currentColor;
+    }
+
+    .wheel-arrow.n { transform: translateY(calc(var(--wheel-d) * -0.42 + 5px)); }
+    .wheel-arrow.s { transform: translateY(calc(var(--wheel-d) * 0.42 - 5px)) rotate(180deg); }
+    .wheel-arrow.w { transform: translateX(calc(var(--wheel-d) * -0.42 + 5px)) rotate(-90deg); }
+    .wheel-arrow.e { transform: translateX(calc(var(--wheel-d) * 0.42 - 5px)) rotate(90deg); }
+
+    .wheel-center {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: max(54px, calc(var(--wheel-d) * 0.52 * 0.76));
+      height: max(54px, calc(var(--wheel-d) * 0.52 * 0.76));
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      border: 1px solid #c0bcb4;
+      background: linear-gradient(180deg, #f4f0e8 0%, #dcd8d0 100%);
+      box-shadow: 0 2px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    /* ── Bottom buttons (layout preview: hidden) ── */
+    .btn-row {
+      display: none;
+    }
+
+    .resin-key {
+      flex-shrink: 0;
+      padding: 11px 0;
+      border-radius: 8px;
+      border: 1px solid #c4c0b8;
+      background: linear-gradient(180deg, #ece8e0 0%, #d8d4cc 100%);
+      box-shadow: 0 2px 0 rgba(176, 172, 164, 0.5);
+      font: 500 10px/1 ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+      color: #787470;
+      text-align: center;
+      user-select: none;
+    }
+
+    .resin-key.mono {
+      font-family: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+    }
+
+    .resin-key.menu { width: 28%; }
+    .resin-key.select { width: 28%; }
+    .resin-key.generate { width: 34%; }
+  </style>
+</head>
+<body>
+  <p class="page-note">
+    SwiftUI 静的プレビュー v1 — iPhone 縦 390×844 枠 — <code>src/Views/MemoryTunerView.swift</code> 相当（操作なし・DEBUG HUD なし）
+  </p>
+
+  <main class="viewport" aria-label="MEMORY TUNER SwiftUI プレビュー">
+    <div class="iphone-preview" aria-label="iPhone 縦画面プレビュー 390×844">
+    <article class="device">
+      <div class="device-inner">
+        <section class="lcd" aria-label="LCD スロット表示">
+          <div class="lcd-rows">
+            <div class="lcd-row active">
+              <span class="lcd-label">年</span>
+              <span class="lcd-spacer"></span>
+              <span class="lcd-value">1994</span>
+            </div>
+            <div class="lcd-row">
+              <span class="lcd-label">季節</span>
+              <span class="lcd-spacer"></span>
+              <span class="lcd-value">春</span>
+            </div>
+            <div class="lcd-row">
+              <span class="lcd-label">天気</span>
+              <span class="lcd-spacer"></span>
+              <span class="lcd-value">晴れ</span>
+            </div>
+            <div class="lcd-row">
+              <span class="lcd-label">場所</span>
+              <span class="lcd-spacer"></span>
+              <span class="lcd-value">家</span>
+            </div>
+            <div class="lcd-row">
+              <span class="lcd-label">情景</span>
+              <span class="lcd-spacer"></span>
+              <span class="lcd-value">ひとり</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="lcd-wheel-gap" aria-hidden="true"></div>
+
+        <div class="wheel-area">
+          <section class="wheel-wrap" aria-label="回転ホイール">
+            <div class="wheel-ring" aria-hidden="true"></div>
+            <div class="wheel-dark-ring" aria-hidden="true"></div>
+            <div class="wheel-inner" aria-hidden="true"></div>
+
+            <div class="wheel-notches" aria-hidden="true">
+              <div class="wheel-notch major" style="transform: rotate(0deg) translateY(calc(var(--wheel-d) * -0.5 + 7px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(30deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(60deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+              <div class="wheel-notch major" style="transform: rotate(90deg) translateY(calc(var(--wheel-d) * -0.5 + 7px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(120deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(150deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+              <div class="wheel-notch major" style="transform: rotate(180deg) translateY(calc(var(--wheel-d) * -0.5 + 7px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(210deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(240deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+              <div class="wheel-notch major" style="transform: rotate(270deg) translateY(calc(var(--wheel-d) * -0.5 + 7px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(300deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+              <div class="wheel-notch minor" style="transform: rotate(330deg) translateY(calc(var(--wheel-d) * -0.5 + 6px))"></div>
+            </div>
+
+            <div class="wheel-arrows" aria-hidden="true">
+              <span class="wheel-arrow n"><svg viewBox="0 0 7 6"><path d="M3.5 0 L0 6 L7 6 Z"/></svg></span>
+              <span class="wheel-arrow s"><svg viewBox="0 0 7 6"><path d="M3.5 0 L0 6 L7 6 Z"/></svg></span>
+              <span class="wheel-arrow w"><svg viewBox="0 0 7 6"><path d="M3.5 0 L0 6 L7 6 Z"/></svg></span>
+              <span class="wheel-arrow e"><svg viewBox="0 0 7 6"><path d="M3.5 0 L0 6 L7 6 Z"/></svg></span>
+            </div>
+
+            <div class="wheel-center" aria-label="決定"></div>
+          </section>
+        </div>
+
+        <div class="bottom-fill" aria-hidden="true"></div>
+
+        <nav class="btn-row" aria-label="操作ボタン（表示のみ）">
+          <div class="resin-key menu mono">MENU</div>
+          <div class="resin-key select">選択</div>
+          <div class="resin-key generate">生成 →</div>
+        </nav>
+      </div>
+    </article>
+    </div>
+  </main>
+</body>
+</html>
