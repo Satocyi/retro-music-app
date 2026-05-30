@@ -98,21 +98,18 @@ struct MemoryTunerView: View {
 
         let lcdW = geo.size.width - 56
         let ledBlock: CGFloat = geo.safeAreaInsets.top + 18 + 6 + 6
-        let lcdH = min(innerClear * 0.46, lcdW * 0.74)
-        let wheelGap: CGFloat = 26
-        let wheelTail: CGFloat = 4
-        let railBottom = min(max(geo.size.height * (17.0 / 100), 120), 138)
+        let lcdH = min(innerClear * 0.36, lcdW * 0.68)
+        let wheelGap: CGFloat = 48
+        let railBottom = min(max(geo.size.height * 0.13, 88), 112)
 
-        let wheelCapV = innerClear - ledBlock - lcdH - wheelGap - wheelTail - railBottom - 4
-        let wheelCapH = geo.size.width - 4
-        let wheelFlatBase = min(wheelCapH, max(wheelCapV, 120))
-        let wheelFlat = min(wheelFlatBase * 1.14, wheelCapH, wheelCapV + 6)
+        let wheelTargetByWidth = geo.size.width * 0.90
+        let wheelCapV = innerClear - ledBlock - lcdH - wheelGap - railBottom - 8
+        let wheelFlat = min(wheelTargetByWidth, wheelCapV, geo.size.width - 8)
 
-        let slackBelow = innerClear - ledBlock - lcdH - wheelGap - wheelTail - wheelFlat - 12
-        let stretchCap = min(max(geo.size.height * (17.95 / 100), 108), 148)
-        let stretchY = min(max(slackBelow - railBottom, 0), stretchCap)
-        let bottomTail = slackBelow - stretchY
-        let wheelStretchScale = (wheelFlat + stretchY) / wheelFlat
+        let contentAboveWheel = ledBlock + 6 + lcdH + wheelGap
+        let slackBelowWheel = max(innerClear - contentAboveWheel - wheelFlat - railBottom, 0)
+        let padAboveWheel = slackBelowWheel * 0.30
+        let padBelowWheel = slackBelowWheel * 0.70
 
         return VStack(spacing: 0) {
             statusLEDRow
@@ -127,12 +124,18 @@ struct MemoryTunerView: View {
                 .frame(height: wheelGap)
                 .frame(maxWidth: .infinity)
 
+            if padAboveWheel > 0 {
+                Spacer()
+                    .frame(height: padAboveWheel)
+            }
+
             wheelMountSection(diameter: wheelFlat)
-                .scaleEffect(x: 1, y: wheelStretchScale, anchor: .center)
-                .padding(.bottom, wheelTail)
+                .padding(.bottom, 4)
+
+            Spacer(minLength: padBelowWheel)
 
             Color.clear
-                .frame(height: max(0, bottomTail))
+                .frame(height: railBottom)
                 .frame(maxWidth: .infinity)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -439,6 +442,8 @@ struct MemoryTunerView: View {
         let outerR = diameter / 2 - 2
         let innerR = diameter * 0.46 / 2
         let centerD = diameter * 0.3 * 2
+        let okTapD = centerD + 20
+        let ringInnerExclude = okTapD / 2 + 10
 
         return ZStack {
             Circle()
@@ -458,6 +463,7 @@ struct MemoryTunerView: View {
                         .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
                         .padding(2)
                 }
+                .allowsHitTesting(false)
 
             blackWheelNotches(diameter: diameter)
                 .rotationEffect(.degrees(wheelVisualRotationDegrees))
@@ -480,53 +486,65 @@ struct MemoryTunerView: View {
                 }
                 .allowsHitTesting(false)
 
-            WheelRingHitShape(outerRadius: outerR, innerRadius: centerD / 2 + 2)
+            okCenterVisual(centerD: centerD)
+                .scaleEffect(okPressed ? 0.96 : 1)
+                .animation(.easeOut(duration: 0.1), value: okPressed)
+                .allowsHitTesting(false)
+                .zIndex(2)
+
+            WheelRingHitShape(outerRadius: outerR, innerRadius: ringInnerExclude)
                 .fill(Color.orange.opacity(0.001))
                 .frame(width: diameter, height: diameter)
-                .contentShape(WheelRingHitShape(outerRadius: outerR, innerRadius: centerD / 2 + 2))
+                .contentShape(WheelRingHitShape(outerRadius: outerR, innerRadius: ringInnerExclude))
                 .gesture(wheelDragGesture(diameter: diameter))
+                .zIndex(1)
 
             Button {
                 handleOK()
             } label: {
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: okPressed
-                                    ? [Color(hex: "282828"), Color(hex: "303030")]
-                                    : [Color(hex: "606060"), Color(hex: "4c4c4c"), Color(hex: "3a3a3a")],
-                                center: UnitPoint(x: okPressed ? 0.5 : 0.42, y: okPressed ? 0.58 : 0.36),
-                                startRadius: 0,
-                                endRadius: centerD / 2
-                            )
-                        )
-                        .overlay {
-                            Circle()
-                                .strokeBorder(Color(hex: "141414").opacity(0.6), lineWidth: 1)
-                        }
-                        .shadow(
-                            color: .black.opacity(okPressed ? 0.7 : 0.5),
-                            radius: okPressed ? 2 : 4,
-                            y: okPressed ? 1 : 3
-                        )
-
-                    Text("OK")
-                        .font(.system(size: 10, weight: .medium, design: .default))
-                        .tracking(1.2)
-                        .foregroundStyle(
-                            okPressed
-                                ? Color(hex: "8c8c82").opacity(0.7)
-                                : Color(hex: "c3beb4").opacity(0.8)
-                        )
-                }
-                .frame(width: centerD, height: centerD)
-                .contentShape(Circle())
+                Color.white.opacity(0.001)
+                    .frame(width: okTapD, height: okTapD)
+                    .contentShape(Circle())
             }
-            .buttonStyle(WheelCenterPushStyle())
-            .zIndex(1)
+            .buttonStyle(.plain)
+            .zIndex(100)
         }
         .frame(width: diameter, height: diameter)
+    }
+
+    private func okCenterVisual(centerD: CGFloat) -> some View {
+        ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: okPressed
+                            ? [Color(hex: "282828"), Color(hex: "303030")]
+                            : [Color(hex: "606060"), Color(hex: "4c4c4c"), Color(hex: "3a3a3a")],
+                        center: UnitPoint(x: okPressed ? 0.5 : 0.42, y: okPressed ? 0.58 : 0.36),
+                        startRadius: 0,
+                        endRadius: centerD / 2
+                    )
+                )
+                .overlay {
+                    Circle()
+                        .strokeBorder(Color(hex: "141414").opacity(0.6), lineWidth: 1)
+                }
+                .shadow(
+                    color: .black.opacity(okPressed ? 0.7 : 0.5),
+                    radius: okPressed ? 2 : 4,
+                    y: okPressed ? 1 : 3
+                )
+
+            Text("OK")
+                .font(.system(size: 10, weight: .medium, design: .default))
+                .tracking(1.2)
+                .foregroundStyle(
+                    okPressed
+                        ? Color(hex: "8c8c82").opacity(0.7)
+                        : Color(hex: "c3beb4").opacity(0.8)
+                )
+        }
+        .frame(width: centerD, height: centerD)
     }
 
     private func blackWheelNotches(diameter: CGFloat) -> some View {
@@ -807,14 +825,6 @@ private struct ResinKeyStyle: ButtonStyle {
                 radius: 0,
                 y: configuration.isPressed ? 0 : 2
             )
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
-
-private struct WheelCenterPushStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
