@@ -1,9 +1,18 @@
 import OSLog
+import PhotosUI
 import SwiftUI
 
-/// Memory Tuner — 黒ホイール版レトロデバイス（web版視覚基準・見た目移植 第一段階）
+/// Photo Tuner — 黒ホイール版レトロデバイス（写真MVP UI）
 struct MemoryTunerView: View {
     private static let log = Logger(subsystem: "dev.wheelprototype.app", category: "MemoryTuner")
+
+    private enum PhotoTuningControl: Int, CaseIterable {
+        case era
+        case season
+        case timeOfDay
+        case weather
+        case texture
+    }
 
     private struct SlotDefinition {
         let label: String
@@ -12,21 +21,27 @@ struct MemoryTunerView: View {
     }
 
     private static let slots: [SlotDefinition] = [
-        SlotDefinition(label: "年", options: ["1992", "1993", "1994", "1995", "1996"], defaultIndex: 2),
-        SlotDefinition(label: "季節", options: ["春", "夏", "秋", "冬"], defaultIndex: 0),
-        SlotDefinition(label: "天気", options: ["晴れ", "曇り", "雨", "雪"], defaultIndex: 0),
-        SlotDefinition(label: "場所", options: ["家", "学校", "街", "海"], defaultIndex: 0),
-        SlotDefinition(label: "情景", options: ["ひとり", "友達", "家族", "静か"], defaultIndex: 0)
+        SlotDefinition(label: "年", options: ["1998", "2003", "2007", "2012"], defaultIndex: 0),
+        SlotDefinition(label: "季", options: ["春", "夏", "秋", "冬"], defaultIndex: 0),
+        SlotDefinition(label: "時", options: ["朝", "昼", "夕方", "夜"], defaultIndex: 0),
+        SlotDefinition(label: "天", options: ["晴れ", "曇り", "雨", "湿った空気"], defaultIndex: 0),
+        SlotDefinition(label: "質", options: ["古いデジカメ", "低彩度フィルム", "くすんだ緑", "夜の室内", "色あせ"], defaultIndex: 0)
     ]
 
     private static let notchAngle: Double = 30
     private static let wheelNotchCount = 40
 
-    @State private var activeSlotIndex = 0
+    @State private var activeControl: PhotoTuningControl = .era
     @State private var slotValueIndices: [Int]
     @State private var lastGesture = "none"
     @State private var statusLine = ""
     @State private var okPressed = false
+    @State private var isConfirmed = false
+
+    @State private var selectedPhotoItem: PhotosPickerItem?
+    @State private var selectedImage: UIImage?
+    @State private var filterPreviewImage: UIImage?
+    @State private var isProcessing = false
 
     @State private var lastTouchAngleDegrees: Double?
     @State private var lastSampleDate: Date?
@@ -46,15 +61,19 @@ struct MemoryTunerView: View {
 
             let lcdW = geo.size.width - 56
             let lcdH = lcdW * 0.42
+            let previewH = lcdW * 0.30
+            let previewGap: CGFloat = 8
             let wheelGap: CGFloat = 14
             let wheelTail: CGFloat = 2
+            let menuH: CGFloat = 44
+            let menuGap: CGFloat = 8
             let railBottom = min(max(geo.size.height * (18.95 / 100), 134), 148)
 
-            let wheelCapV = innerClear - lcdH - wheelGap - wheelTail - railBottom - 26
+            let wheelCapV = innerClear - previewH - previewGap - lcdH - wheelGap - wheelTail - menuH - menuGap - railBottom - 26
             let wheelCapH = geo.size.width - 8
-            let wheelFlat = min(wheelCapH, wheelCapV)
+            let wheelFlat = min(wheelCapH, max(wheelCapV, 120))
 
-            let slackBelow = innerClear - lcdH - wheelGap - wheelTail - wheelFlat - 26
+            let slackBelow = innerClear - previewH - previewGap - lcdH - wheelGap - wheelTail - wheelFlat - menuH - menuGap - 26
 
             let stretchCap = min(max(geo.size.height * (17.95 / 100), 108), 148)
             let stretchY = min(max(slackBelow - railBottom, 0), stretchCap)
@@ -71,8 +90,12 @@ struct MemoryTunerView: View {
                         .padding(.top, geo.safeAreaInsets.top + 18)
                         .padding(.horizontal, 28)
 
-                    lcdBezel(width: geo.size.width - 56)
-                        .padding(.top, 10)
+                    photoPreviewStrip(width: lcdW, height: previewH)
+                        .padding(.top, 6)
+                        .padding(.horizontal, 28)
+
+                    lcdBezel(width: lcdW)
+                        .padding(.top, previewGap)
                         .padding(.horizontal, 28)
 
                     Color.clear
@@ -82,6 +105,10 @@ struct MemoryTunerView: View {
                     wheelMountSection(diameter: wheelFlat)
                         .scaleEffect(x: 1, y: wheelStretchScale, anchor: .center)
                         .padding(.bottom, wheelTail)
+
+                    bottomMenuButton(width: lcdW)
+                        .padding(.top, menuGap)
+                        .padding(.horizontal, 28)
 
                     Color.clear
                         .frame(height: max(0, bottomTail))
@@ -97,6 +124,73 @@ struct MemoryTunerView: View {
                 #endif
             }
         }
+        .onChange(of: selectedPhotoItem) { newItem in
+            Task { await loadSelectedPhoto(from: newItem) }
+        }
+    }
+
+    // MARK: - Photo preview
+
+    private func photoPreviewStrip(width: CGFloat, height: CGFloat) -> some View {
+        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "1a1a1a"), Color(hex: "121212")],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                    }
+
+                if let preview = displayPreviewImage {
+                    Image(uiImage: preview)
+                        .resizable()
+                        .scaledToFit()
+                        .padding(4)
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                } else {
+                    VStack(spacing: 4) {
+                        Text("PHOTO INPUT")
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(Color(hex: "787878"))
+                        Text("写真を選ぶ")
+                            .font(.system(size: 11, weight: .regular, design: .default))
+                            .foregroundStyle(Color(hex: "989898"))
+                    }
+                }
+
+                if isProcessing {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(Color.black.opacity(0.35))
+                    Text("●PROCESSING")
+                        .font(.system(size: 9, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Color(hex: "4aff4a"))
+                }
+
+                if isConfirmed {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Color(hex: "4aff4a").opacity(0.55), lineWidth: 2)
+                }
+            }
+            .frame(width: width, height: height)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var displayPreviewImage: UIImage? {
+        filterPreviewImage ?? selectedImage
+    }
+
+    private var lcdStatusText: String {
+        if isProcessing { return "●PROCESSING" }
+        if isConfirmed { return "●LOCKED" }
+        if selectedImage != nil { return "●READY" }
+        return "●STANDBY"
     }
 
     // MARK: - Device chassis (web: brushed silver body)
@@ -140,9 +234,9 @@ struct MemoryTunerView: View {
         HStack {
             Spacer()
             Circle()
-                .fill(Color(hex: "44aa44"))
+                .fill(Color(hex: selectedImage == nil ? "666666" : "44aa44"))
                 .frame(width: 6, height: 6)
-                .shadow(color: Color(hex: "44aa44").opacity(0.9), radius: 4)
+                .shadow(color: Color(hex: "44aa44").opacity(selectedImage == nil ? 0 : 0.9), radius: 4)
         }
     }
 
@@ -192,12 +286,12 @@ struct MemoryTunerView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
-                    Text("MEMORY TUNER")
+                    Text("PHOTO TUNER")
                         .font(.system(size: 9, weight: .regular, design: .monospaced))
                         .foregroundStyle(Color(hex: "4aff4a").opacity(0.85))
                         .shadow(color: Color(hex: "00ff00").opacity(0.6), radius: 3)
                     Spacer()
-                    Text("●STANDBY")
+                    Text(lcdStatusText)
                         .font(.system(size: 9, weight: .regular, design: .monospaced))
                         .foregroundStyle(Color(hex: "3acc3a"))
                         .shadow(color: Color(hex: "00cc00").opacity(0.5), radius: 2)
@@ -226,7 +320,7 @@ struct MemoryTunerView: View {
 
     private func dotMatrixRow(row: Int) -> some View {
         let slot = Self.slots[row]
-        let isActive = row == activeSlotIndex
+        let isActive = row == activeControl.rawValue
         let value = slot.options[slotValueIndices[row]]
 
         let labelColor = isActive ? Color(hex: "4aff4a") : Color(hex: "2a7a2a")
@@ -247,6 +341,8 @@ struct MemoryTunerView: View {
                 .font(.system(size: isActive && row == 0 ? 13 : 11, weight: .regular, design: .monospaced))
                 .foregroundStyle(valueColor)
                 .shadow(color: Color(hex: "00cc00").opacity(isActive ? 0.7 : 0.4), radius: glowRadius)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Spacer(minLength: 0)
         }
@@ -352,9 +448,10 @@ struct MemoryTunerView: View {
 
             Button {
                 okPressed = true
+                isConfirmed = selectedImage != nil
                 emitGesture("decide")
                 let summary = currentCombinationText()
-                statusLine = "確定: \(summary)"
+                statusLine = isConfirmed ? "確定: \(summary)" : "写真を選んでください"
                 Self.log.info("decide \(summary, privacy: .public)")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
                     okPressed = false
@@ -460,11 +557,11 @@ struct MemoryTunerView: View {
         notchAccumulator += delta
         while notchAccumulator >= Self.notchAngle {
             notchAccumulator -= Self.notchAngle
-            stepActiveSlotValue(direction: 1)
+            stepActiveControlValue(direction: 1)
         }
         while notchAccumulator <= -Self.notchAngle {
             notchAccumulator += Self.notchAngle
-            stepActiveSlotValue(direction: -1)
+            stepActiveControlValue(direction: -1)
         }
     }
 
@@ -477,32 +574,26 @@ struct MemoryTunerView: View {
         applyWheelDelta(extra)
     }
 
-    private func stepActiveSlotValue(direction: Int) {
-        let slot = Self.slots[activeSlotIndex]
+    private func stepActiveControlValue(direction: Int) {
+        let row = activeControl.rawValue
+        let slot = Self.slots[row]
         let count = slot.options.count
         guard count > 0 else { return }
-        var idx = slotValueIndices[activeSlotIndex]
+        var idx = slotValueIndices[row]
         idx = (idx + direction + count) % count
-        slotValueIndices[activeSlotIndex] = idx
+        slotValueIndices[row] = idx
+        isConfirmed = false
         emitGesture("wheel")
+        refreshFilterPreview()
     }
 
-    // MARK: - Bottom buttons (非表示・将来用に保持)
+    // MARK: - Bottom MENU button
 
-    private func bottomButtons(width w: CGFloat) -> some View {
-        HStack(spacing: w * 0.04) {
-            resinKey(title: "MENU", monospace: true, width: w * 0.28) {
-                activeSlotIndex = (activeSlotIndex + 1) % Self.slots.count
-                emitGesture("menu")
-            }
-            resinKey(title: "選択", monospace: false, width: w * 0.28) {
-                emitGesture("select")
-                statusLine = "選択: \(currentCombinationText())"
-            }
-            resinKey(title: "生成 →", monospace: false, width: w * 0.34) {
-                emitGesture("generate")
-                statusLine = "生成 → \(currentCombinationText())"
-            }
+    private func bottomMenuButton(width w: CGFloat) -> some View {
+        resinKey(title: "MENU", monospace: true, width: w * 0.32) {
+            let next = (activeControl.rawValue + 1) % PhotoTuningControl.allCases.count
+            activeControl = PhotoTuningControl(rawValue: next) ?? .era
+            emitGesture("menu")
         }
     }
 
@@ -530,6 +621,50 @@ struct MemoryTunerView: View {
         }
         .buttonStyle(ResinKeyStyle())
         .frame(width: width)
+    }
+
+    // MARK: - Photo loading & filter
+
+    private func loadSelectedPhoto(from item: PhotosPickerItem?) async {
+        guard let item else { return }
+        await MainActor.run { isProcessing = true }
+        defer { Task { @MainActor in isProcessing = false } }
+
+        guard let data = try? await item.loadTransferable(type: Data.self),
+              let image = UIImage(data: data) else { return }
+
+        await MainActor.run {
+            selectedImage = PhotoFilterProcessor.previewScale(for: image)
+            filterPreviewImage = nil
+            isConfirmed = false
+            refreshFilterPreview()
+        }
+    }
+
+    private func refreshFilterPreview() {
+        guard let source = selectedImage else {
+            filterPreviewImage = nil
+            return
+        }
+        isProcessing = true
+        let indices = currentTuningIndices()
+        DispatchQueue.global(qos: .userInitiated).async {
+            let filtered = PhotoFilterProcessor.apply(to: source, indices: indices)
+            DispatchQueue.main.async {
+                filterPreviewImage = filtered ?? source
+                isProcessing = false
+            }
+        }
+    }
+
+    private func currentTuningIndices() -> PhotoFilterProcessor.TuningIndices {
+        PhotoFilterProcessor.TuningIndices(
+            era: slotValueIndices[0],
+            season: slotValueIndices[1],
+            timeOfDay: slotValueIndices[2],
+            weather: slotValueIndices[3],
+            texture: slotValueIndices[4]
+        )
     }
 
     // MARK: - Helpers
