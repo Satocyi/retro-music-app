@@ -6,6 +6,11 @@ import SwiftUI
 struct MemoryTunerView: View {
     private static let log = Logger(subsystem: "dev.wheelprototype.app", category: "MemoryTuner")
 
+    private enum ScreenPhase {
+        case tuning
+        case result
+    }
+
     private enum PhotoTuningControl: Int, CaseIterable {
         case era
         case season
@@ -31,13 +36,14 @@ struct MemoryTunerView: View {
     private static let notchAngle: Double = 30
     private static let wheelNotchCount = 40
 
+    @State private var screenPhase: ScreenPhase = .tuning
     @State private var activeControl: PhotoTuningControl = .era
     @State private var slotValueIndices: [Int]
     @State private var lastGesture = "none"
     @State private var statusLine = ""
     @State private var okPressed = false
-    @State private var isConfirmed = false
 
+    @State private var isPhotoPickerPresented = false
     @State private var selectedPhotoItem: PhotosPickerItem?
     @State private var selectedImage: UIImage?
     @State private var filterPreviewImage: UIImage?
@@ -48,6 +54,10 @@ struct MemoryTunerView: View {
     @State private var angularVelocityDegPerSec: Double = 0
     @State private var notchAccumulator: Double = 0
     @State private var isWheelInteractActive = false
+    @State private var wheelVisualRotationDegrees: Double = 0
+
+    private static let wheelStepRotationDegrees: Double = 10
+    private static let wheelRotationAnimation = Animation.easeOut(duration: 0.12)
 
     init() {
         _slotValueIndices = State(initialValue: Self.slots.map(\.defaultIndex))
@@ -55,67 +65,16 @@ struct MemoryTunerView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let padDeviceTop: CGFloat = 20
-            let padDeviceBottom: CGFloat = 6
-            let innerClear = geo.size.height - padDeviceTop - padDeviceBottom
-
-            let lcdW = geo.size.width - 56
-            let lcdH = lcdW * 0.42
-            let previewH = lcdW * 0.30
-            let previewGap: CGFloat = 8
-            let wheelGap: CGFloat = 14
-            let wheelTail: CGFloat = 2
-            let menuH: CGFloat = 44
-            let menuGap: CGFloat = 8
-            let railBottom = min(max(geo.size.height * (18.95 / 100), 134), 148)
-
-            let wheelCapV = innerClear - previewH - previewGap - lcdH - wheelGap - wheelTail - menuH - menuGap - railBottom - 26
-            let wheelCapH = geo.size.width - 8
-            let wheelFlat = min(wheelCapH, max(wheelCapV, 120))
-
-            let slackBelow = innerClear - previewH - previewGap - lcdH - wheelGap - wheelTail - wheelFlat - menuH - menuGap - 26
-
-            let stretchCap = min(max(geo.size.height * (17.95 / 100), 108), 148)
-            let stretchY = min(max(slackBelow - railBottom, 0), stretchCap)
-            let bottomTail = slackBelow - stretchY
-
-            let wheelStretchScale = (wheelFlat + stretchY) / wheelFlat
-
             ZStack(alignment: .topLeading) {
                 deviceChassisBackground
                     .ignoresSafeArea()
 
-                VStack(spacing: 0) {
-                    statusLEDRow
-                        .padding(.top, geo.safeAreaInsets.top + 18)
-                        .padding(.horizontal, 28)
-
-                    photoPreviewStrip(width: lcdW, height: previewH)
-                        .padding(.top, 6)
-                        .padding(.horizontal, 28)
-
-                    lcdBezel(width: lcdW)
-                        .padding(.top, previewGap)
-                        .padding(.horizontal, 28)
-
-                    Color.clear
-                        .frame(height: wheelGap)
-                        .frame(maxWidth: .infinity)
-
-                    wheelMountSection(diameter: wheelFlat)
-                        .scaleEffect(x: 1, y: wheelStretchScale, anchor: .center)
-                        .padding(.bottom, wheelTail)
-
-                    bottomMenuButton(width: lcdW)
-                        .padding(.top, menuGap)
-                        .padding(.horizontal, 28)
-
-                    Color.clear
-                        .frame(height: max(0, bottomTail))
-                        .frame(maxWidth: .infinity)
+                switch screenPhase {
+                case .tuning:
+                    tuningLayout(geo: geo)
+                case .result:
+                    resultLayout(geo: geo)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .padding(.bottom, max(geo.safeAreaInsets.bottom, 6))
 
                 #if DEBUG
                 debugHUD
@@ -124,73 +83,141 @@ struct MemoryTunerView: View {
                 #endif
             }
         }
+        .photosPicker(isPresented: $isPhotoPickerPresented, selection: $selectedPhotoItem, matching: .images)
         .onChange(of: selectedPhotoItem) { newItem in
             Task { await loadSelectedPhoto(from: newItem) }
         }
     }
 
-    // MARK: - Photo preview
+    // MARK: - Tuning layout (large LCD + wheel, no photo)
 
-    private func photoPreviewStrip(width: CGFloat, height: CGFloat) -> some View {
-        PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "1a1a1a"), Color(hex: "121212")],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-                    }
+    private func tuningLayout(geo: GeometryProxy) -> some View {
+        let padDeviceTop: CGFloat = 20
+        let padDeviceBottom: CGFloat = 6
+        let innerClear = geo.size.height - padDeviceTop - padDeviceBottom
 
-                if let preview = displayPreviewImage {
-                    Image(uiImage: preview)
-                        .resizable()
-                        .scaledToFit()
-                        .padding(4)
-                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-                } else {
-                    VStack(spacing: 4) {
-                        Text("PHOTO INPUT")
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(Color(hex: "787878"))
-                        Text("写真を選ぶ")
-                            .font(.system(size: 11, weight: .regular, design: .default))
-                            .foregroundStyle(Color(hex: "989898"))
-                    }
-                }
+        let lcdW = geo.size.width - 56
+        let ledBlock: CGFloat = geo.safeAreaInsets.top + 18 + 6 + 6
+        let lcdH = min(innerClear * 0.48, lcdW * 0.78)
+        let wheelGap: CGFloat = 14
+        let wheelTail: CGFloat = 2
+        let railBottom = min(max(geo.size.height * (18.95 / 100), 134), 148)
 
-                if isProcessing {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(Color.black.opacity(0.35))
-                    Text("●PROCESSING")
-                        .font(.system(size: 9, weight: .regular, design: .monospaced))
-                        .foregroundStyle(Color(hex: "4aff4a"))
-                }
+        let wheelCapV = innerClear - ledBlock - lcdH - wheelGap - wheelTail - railBottom - 12
+        let wheelCapH = geo.size.width - 8
+        let wheelFlat = min(wheelCapH, max(wheelCapV, 120))
 
-                if isConfirmed {
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(Color(hex: "4aff4a").opacity(0.55), lineWidth: 2)
-                }
-            }
-            .frame(width: width, height: height)
+        let slackBelow = innerClear - ledBlock - lcdH - wheelGap - wheelTail - wheelFlat - 12
+        let stretchCap = min(max(geo.size.height * (17.95 / 100), 108), 148)
+        let stretchY = min(max(slackBelow - railBottom, 0), stretchCap)
+        let bottomTail = slackBelow - stretchY
+        let wheelStretchScale = (wheelFlat + stretchY) / wheelFlat
+
+        return VStack(spacing: 0) {
+            statusLEDRow
+                .padding(.top, geo.safeAreaInsets.top + 18)
+                .padding(.horizontal, 28)
+
+            lcdBezel(width: lcdW, height: lcdH, largeLayout: true)
+                .padding(.top, 6)
+                .padding(.horizontal, 28)
+
+            Color.clear
+                .frame(height: wheelGap)
+                .frame(maxWidth: .infinity)
+
+            wheelMountSection(diameter: wheelFlat)
+                .scaleEffect(x: 1, y: wheelStretchScale, anchor: .center)
+                .padding(.bottom, wheelTail)
+
+            Color.clear
+                .frame(height: max(0, bottomTail))
+                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.bottom, max(geo.safeAreaInsets.bottom, padDeviceBottom))
     }
 
-    private var displayPreviewImage: UIImage? {
-        filterPreviewImage ?? selectedImage
+    // MARK: - Result layout (large filtered photo + stub actions)
+
+    private func resultLayout(geo: GeometryProxy) -> some View {
+        let lcdW = geo.size.width - 56
+        let actionH: CGFloat = 44
+        let actionGap: CGFloat = 12
+        let topBlock = geo.safeAreaInsets.top + 18 + 6
+        let bottomBlock = max(geo.safeAreaInsets.bottom, 6) + actionH + actionGap + 16
+        let photoMaxH = max(geo.size.height - topBlock - bottomBlock - 20, 200)
+
+        return VStack(spacing: 0) {
+            statusLEDRow
+                .padding(.top, geo.safeAreaInsets.top + 18)
+                .padding(.horizontal, 28)
+
+            resultPhotoDisplay(width: lcdW, maxHeight: photoMaxH)
+                .padding(.top, 6)
+                .padding(.horizontal, 28)
+
+            HStack(spacing: 12) {
+                resinKey(title: "保存", monospace: false, flex: true) {
+                    statusLine = "保存は未実装"
+                    Self.log.info("save stub tapped")
+                }
+                resinKey(title: "戻る", monospace: false, flex: true) {
+                    goBackToTuning()
+                }
+            }
+            .padding(.horizontal, 28)
+            .padding(.top, actionGap)
+
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.bottom, max(geo.safeAreaInsets.bottom, 6))
+    }
+
+    private func resultPhotoDisplay(width: CGFloat, maxHeight: CGFloat) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [Color(hex: "1a1a1a"), Color(hex: "121212")],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+                }
+
+            if let preview = filterPreviewImage {
+                Image(uiImage: preview)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: width - 8, maxHeight: maxHeight - 8)
+                    .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+            }
+
+            if isProcessing {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.black.opacity(0.35))
+                Text("●PROCESSING")
+                    .font(.system(size: 9, weight: .regular, design: .monospaced))
+                    .foregroundStyle(Color(hex: "4aff4a"))
+            }
+
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .strokeBorder(Color(hex: "4aff4a").opacity(filterPreviewImage != nil ? 0.55 : 0), lineWidth: 2)
+        }
+        .frame(width: width, height: maxHeight)
     }
 
     private var lcdStatusText: String {
         if isProcessing { return "●PROCESSING" }
-        if isConfirmed { return "●LOCKED" }
-        if selectedImage != nil { return "●READY" }
-        return "●STANDBY"
+        switch screenPhase {
+        case .tuning: return "●TUNING"
+        case .result: return "●RESULT"
+        }
     }
 
     // MARK: - Device chassis (web: brushed silver body)
@@ -234,15 +261,15 @@ struct MemoryTunerView: View {
         HStack {
             Spacer()
             Circle()
-                .fill(Color(hex: selectedImage == nil ? "666666" : "44aa44"))
+                .fill(Color(hex: screenPhase == .result && filterPreviewImage != nil ? "44aa44" : "44aa44"))
                 .frame(width: 6, height: 6)
-                .shadow(color: Color(hex: "44aa44").opacity(selectedImage == nil ? 0 : 0.9), radius: 4)
+                .shadow(color: Color(hex: "44aa44").opacity(0.9), radius: 4)
         }
     }
 
     // MARK: - LCD bezel + dot matrix screen
 
-    private func lcdBezel(width lcdW: CGFloat) -> some View {
+    private func lcdBezel(width lcdW: CGFloat, height lcdH: CGFloat, largeLayout: Bool) -> some View {
         ZStack {
             LinearGradient(
                 colors: [Color(hex: "181818"), Color(hex: "121212")],
@@ -250,10 +277,10 @@ struct MemoryTunerView: View {
                 endPoint: .bottom
             )
 
-            dotMatrixPanel(width: lcdW - 6)
+            dotMatrixPanel(width: lcdW - 6, height: lcdH - 6, largeLayout: largeLayout)
                 .padding(3)
         }
-        .frame(width: lcdW, height: lcdW * 0.42)
+        .frame(width: lcdW, height: lcdH)
         .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
         .shadow(color: .black.opacity(0.85), radius: 2.5, x: 0, y: 2)
         .overlay {
@@ -262,7 +289,7 @@ struct MemoryTunerView: View {
         }
     }
 
-    private func dotMatrixPanel(width lcdW: CGFloat) -> some View {
+    private func dotMatrixPanel(width lcdW: CGFloat, height lcdH: CGFloat, largeLayout: Bool) -> some View {
         ZStack {
             LinearGradient(
                 colors: [Color(hex: "0a1a0a"), Color(hex: "0d1f0d")],
@@ -279,7 +306,7 @@ struct MemoryTunerView: View {
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .frame(height: lcdW * 0.42 * 0.35)
+                .frame(height: lcdH * 0.35)
                 Spacer()
             }
             .allowsHitTesting(false)
@@ -287,16 +314,16 @@ struct MemoryTunerView: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
                     Text("PHOTO TUNER")
-                        .font(.system(size: 9, weight: .regular, design: .monospaced))
+                        .font(.system(size: largeLayout ? 11 : 9, weight: .regular, design: .monospaced))
                         .foregroundStyle(Color(hex: "4aff4a").opacity(0.85))
                         .shadow(color: Color(hex: "00ff00").opacity(0.6), radius: 3)
                     Spacer()
                     Text(lcdStatusText)
-                        .font(.system(size: 9, weight: .regular, design: .monospaced))
+                        .font(.system(size: largeLayout ? 11 : 9, weight: .regular, design: .monospaced))
                         .foregroundStyle(Color(hex: "3acc3a"))
                         .shadow(color: Color(hex: "00cc00").opacity(0.5), radius: 2)
                 }
-                .padding(.bottom, 6)
+                .padding(.bottom, largeLayout ? 10 : 6)
                 .overlay(alignment: .bottom) {
                     Rectangle()
                         .fill(Color(hex: "1a4a1a"))
@@ -304,11 +331,13 @@ struct MemoryTunerView: View {
                 }
 
                 ForEach(0..<Self.slots.count, id: \.self) { row in
-                    dotMatrixRow(row: row)
+                    dotMatrixRow(row: row, largeLayout: largeLayout)
                 }
+
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, largeLayout ? 16 : 12)
+            .padding(.vertical, largeLayout ? 14 : 10)
         }
         .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
         .overlay {
@@ -318,27 +347,31 @@ struct MemoryTunerView: View {
         .shadow(color: Color(hex: "005000").opacity(0.15), radius: 10)
     }
 
-    private func dotMatrixRow(row: Int) -> some View {
+    private func dotMatrixRow(row: Int, largeLayout: Bool) -> some View {
         let slot = Self.slots[row]
         let isActive = row == activeControl.rawValue
         let value = slot.options[slotValueIndices[row]]
 
         let labelColor = isActive ? Color(hex: "4aff4a") : Color(hex: "2a7a2a")
         let valueColor = isActive ? Color(hex: "7fff7f") : Color(hex: "5adf5a")
-        let glowRadius: CGFloat = isActive ? 6 : 3
+        let glowRadius: CGFloat = isActive ? (largeLayout ? 8 : 6) : 3
+        let labelSize: CGFloat = largeLayout ? 12 : 9
+        let valueSize: CGFloat = largeLayout
+            ? (isActive ? 16 : 14)
+            : (isActive && row == 0 ? 13 : 11)
 
         return HStack(spacing: 4) {
             Text(slot.label)
-                .font(.system(size: 9, weight: .regular, design: .monospaced))
+                .font(.system(size: labelSize, weight: .regular, design: .monospaced))
                 .foregroundStyle(labelColor)
-                .frame(width: 28, alignment: .leading)
+                .frame(width: largeLayout ? 32 : 28, alignment: .leading)
 
             Text(":")
-                .font(.system(size: 8, weight: .regular, design: .monospaced))
+                .font(.system(size: largeLayout ? 10 : 8, weight: .regular, design: .monospaced))
                 .foregroundStyle(Color(hex: "1a4a1a"))
 
             Text(value)
-                .font(.system(size: isActive && row == 0 ? 13 : 11, weight: .regular, design: .monospaced))
+                .font(.system(size: valueSize, weight: .regular, design: .monospaced))
                 .foregroundStyle(valueColor)
                 .shadow(color: Color(hex: "00cc00").opacity(isActive ? 0.7 : 0.4), radius: glowRadius)
                 .lineLimit(1)
@@ -346,13 +379,18 @@ struct MemoryTunerView: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 3)
-        .padding(.horizontal, isActive ? 6 : 0)
+        .padding(.vertical, largeLayout ? 5 : 3)
+        .padding(.horizontal, isActive ? (largeLayout ? 8 : 6) : 0)
         .background {
             if isActive {
                 RoundedRectangle(cornerRadius: 2, style: .continuous)
                     .fill(Color(hex: "0a200a").opacity(0.55))
             }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            activeControl = PhotoTuningControl(rawValue: row) ?? .era
+            emitGesture("menu")
         }
     }
 
@@ -421,6 +459,7 @@ struct MemoryTunerView: View {
                 }
 
             blackWheelNotches(diameter: diameter)
+                .rotationEffect(.degrees(wheelVisualRotationDegrees))
 
             Circle()
                 .fill(
@@ -448,11 +487,11 @@ struct MemoryTunerView: View {
 
             Button {
                 okPressed = true
-                isConfirmed = selectedImage != nil
                 emitGesture("decide")
                 let summary = currentCombinationText()
-                statusLine = isConfirmed ? "確定: \(summary)" : "写真を選んでください"
+                statusLine = "選択: \(summary)"
                 Self.log.info("decide \(summary, privacy: .public)")
+                isPhotoPickerPresented = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
                     okPressed = false
                 }
@@ -581,30 +620,23 @@ struct MemoryTunerView: View {
         guard count > 0 else { return }
         var idx = slotValueIndices[row]
         idx = (idx + direction + count) % count
-        slotValueIndices[row] = idx
-        isConfirmed = false
-        emitGesture("wheel")
-        refreshFilterPreview()
-    }
-
-    // MARK: - Bottom MENU button
-
-    private func bottomMenuButton(width w: CGFloat) -> some View {
-        resinKey(title: "MENU", monospace: true, width: w * 0.32) {
-            let next = (activeControl.rawValue + 1) % PhotoTuningControl.allCases.count
-            activeControl = PhotoTuningControl(rawValue: next) ?? .era
-            emitGesture("menu")
+        withAnimation(Self.wheelRotationAnimation) {
+            wheelVisualRotationDegrees += Double(direction) * Self.wheelStepRotationDegrees
+            slotValueIndices[row] = idx
         }
+        emitGesture("wheel")
     }
 
-    private func resinKey(title: String, monospace: Bool, width: CGFloat, action: @escaping () -> Void) -> some View {
+    // MARK: - Action keys (result stubs)
+
+    private func resinKey(title: String, monospace: Bool, flex: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .font(monospace
                     ? .system(size: 10, weight: .medium, design: .monospaced)
                     : .system(size: 10, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(hex: "787470"))
-                .frame(maxWidth: .infinity)
+                .frame(maxWidth: flex ? .infinity : nil)
                 .padding(.vertical, 11)
                 .background {
                     LinearGradient(
@@ -620,7 +652,6 @@ struct MemoryTunerView: View {
                 }
         }
         .buttonStyle(ResinKeyStyle())
-        .frame(width: width)
     }
 
     // MARK: - Photo loading & filter
@@ -633,28 +664,28 @@ struct MemoryTunerView: View {
         guard let data = try? await item.loadTransferable(type: Data.self),
               let image = UIImage(data: data) else { return }
 
+        let scaled = PhotoFilterProcessor.previewScale(for: image)
+        let indices = currentTuningIndices()
+        let filtered = await Task.detached(priority: .userInitiated) {
+            PhotoFilterProcessor.apply(to: scaled, indices: indices)
+        }.value
+
         await MainActor.run {
-            selectedImage = PhotoFilterProcessor.previewScale(for: image)
-            filterPreviewImage = nil
-            isConfirmed = false
-            refreshFilterPreview()
+            selectedImage = scaled
+            filterPreviewImage = filtered ?? scaled
+            screenPhase = .result
+            statusLine = "適用: \(currentCombinationText())"
         }
     }
 
-    private func refreshFilterPreview() {
-        guard let source = selectedImage else {
-            filterPreviewImage = nil
-            return
-        }
-        isProcessing = true
-        let indices = currentTuningIndices()
-        DispatchQueue.global(qos: .userInitiated).async {
-            let filtered = PhotoFilterProcessor.apply(to: source, indices: indices)
-            DispatchQueue.main.async {
-                filterPreviewImage = filtered ?? source
-                isProcessing = false
-            }
-        }
+    private func goBackToTuning() {
+        screenPhase = .tuning
+        selectedPhotoItem = nil
+        selectedImage = nil
+        filterPreviewImage = nil
+        isPhotoPickerPresented = false
+        statusLine = ""
+        emitGesture("back")
     }
 
     private func currentTuningIndices() -> PhotoFilterProcessor.TuningIndices {
@@ -683,6 +714,7 @@ struct MemoryTunerView: View {
     #if DEBUG
     private var debugHUD: some View {
         VStack(alignment: .leading, spacing: 2) {
+            Text("phase=\(screenPhase == .tuning ? "tuning" : "result")")
             Text("lastGesture=\(lastGesture)")
             if !statusLine.isEmpty {
                 Text(statusLine)
