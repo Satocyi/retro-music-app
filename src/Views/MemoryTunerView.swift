@@ -98,14 +98,15 @@ struct MemoryTunerView: View {
 
         let lcdW = geo.size.width - 56
         let ledBlock: CGFloat = geo.safeAreaInsets.top + 18 + 6 + 6
-        let lcdH = min(innerClear * 0.48, lcdW * 0.78)
-        let wheelGap: CGFloat = 14
-        let wheelTail: CGFloat = 2
-        let railBottom = min(max(geo.size.height * (18.95 / 100), 134), 148)
+        let lcdH = min(innerClear * 0.46, lcdW * 0.74)
+        let wheelGap: CGFloat = 26
+        let wheelTail: CGFloat = 4
+        let railBottom = min(max(geo.size.height * (17.0 / 100), 120), 138)
 
-        let wheelCapV = innerClear - ledBlock - lcdH - wheelGap - wheelTail - railBottom - 12
-        let wheelCapH = geo.size.width - 8
-        let wheelFlat = min(wheelCapH, max(wheelCapV, 120))
+        let wheelCapV = innerClear - ledBlock - lcdH - wheelGap - wheelTail - railBottom - 4
+        let wheelCapH = geo.size.width - 4
+        let wheelFlatBase = min(wheelCapH, max(wheelCapV, 120))
+        let wheelFlat = min(wheelFlatBase * 1.14, wheelCapH, wheelCapV + 6)
 
         let slackBelow = innerClear - ledBlock - lcdH - wheelGap - wheelTail - wheelFlat - 12
         let stretchCap = min(max(geo.size.height * (17.95 / 100), 108), 148)
@@ -479,22 +480,14 @@ struct MemoryTunerView: View {
                 }
                 .allowsHitTesting(false)
 
-            Circle()
+            WheelRingHitShape(outerRadius: outerR, innerRadius: centerD / 2 + 2)
                 .fill(Color.orange.opacity(0.001))
                 .frame(width: diameter, height: diameter)
-                .contentShape(Circle())
+                .contentShape(WheelRingHitShape(outerRadius: outerR, innerRadius: centerD / 2 + 2))
                 .gesture(wheelDragGesture(diameter: diameter))
 
             Button {
-                okPressed = true
-                emitGesture("decide")
-                let summary = currentCombinationText()
-                statusLine = "選択: \(summary)"
-                Self.log.info("decide \(summary, privacy: .public)")
-                isPhotoPickerPresented = true
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
-                    okPressed = false
-                }
+                handleOK()
             } label: {
                 ZStack {
                     Circle()
@@ -528,8 +521,10 @@ struct MemoryTunerView: View {
                         )
                 }
                 .frame(width: centerD, height: centerD)
+                .contentShape(Circle())
             }
             .buttonStyle(WheelCenterPushStyle())
+            .zIndex(1)
         }
         .frame(width: diameter, height: diameter)
     }
@@ -678,6 +673,18 @@ struct MemoryTunerView: View {
         }
     }
 
+    private func handleOK() {
+        okPressed = true
+        emitGesture("ok")
+        let summary = currentCombinationText()
+        statusLine = "選択: \(summary)"
+        Self.log.info("handleOK photo picker start \(summary, privacy: .public)")
+        isPhotoPickerPresented = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+            okPressed = false
+        }
+    }
+
     private func goBackToTuning() {
         screenPhase = .tuning
         selectedPhotoItem = nil
@@ -731,6 +738,31 @@ struct MemoryTunerView: View {
 }
 
 // MARK: - Decorative overlays
+
+private struct WheelRingHitShape: Shape {
+    var outerRadius: CGFloat
+    var innerRadius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        var path = Path()
+        path.addArc(
+            center: center,
+            radius: outerRadius,
+            startAngle: .degrees(0),
+            endAngle: .degrees(360),
+            clockwise: false
+        )
+        path.addArc(
+            center: center,
+            radius: innerRadius,
+            startAngle: .degrees(0),
+            endAngle: .degrees(360),
+            clockwise: true
+        )
+        return path
+    }
+}
 
 private struct BrushedMetalGrain: View {
     var body: some View {
