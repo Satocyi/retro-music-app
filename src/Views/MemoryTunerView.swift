@@ -1,7 +1,7 @@
 import OSLog
 import SwiftUI
 
-/// Memory Tuner — 初期iPod風・白樹脂筐体（v1 見た目リデザイン）
+/// Memory Tuner — 黒ホイール版レトロデバイス（web版視覚基準・見た目移植 第一段階）
 struct MemoryTunerView: View {
     private static let log = Logger(subsystem: "dev.wheelprototype.app", category: "MemoryTuner")
 
@@ -20,11 +20,13 @@ struct MemoryTunerView: View {
     ]
 
     private static let notchAngle: Double = 30
+    private static let wheelNotchCount = 40
 
     @State private var activeSlotIndex = 0
     @State private var slotValueIndices: [Int]
     @State private var lastGesture = "none"
     @State private var statusLine = ""
+    @State private var okPressed = false
 
     @State private var lastTouchAngleDegrees: Double?
     @State private var lastSampleDate: Date?
@@ -43,16 +45,16 @@ struct MemoryTunerView: View {
             let innerClear = geo.size.height - padDeviceTop - padDeviceBottom
 
             let lcdW = geo.size.width - 56
-            let lcdH = lcdW * 0.38
-            let wheelGap: CGFloat = 10
+            let lcdH = lcdW * 0.42
+            let wheelGap: CGFloat = 14
             let wheelTail: CGFloat = 2
             let railBottom = min(max(geo.size.height * (18.95 / 100), 134), 148)
 
-            let wheelCapV = innerClear - lcdH - wheelGap - wheelTail - railBottom
+            let wheelCapV = innerClear - lcdH - wheelGap - wheelTail - railBottom - 26
             let wheelCapH = geo.size.width - 8
             let wheelFlat = min(wheelCapH, wheelCapV)
 
-            let slackBelow = innerClear - lcdH - wheelGap - wheelTail - wheelFlat
+            let slackBelow = innerClear - lcdH - wheelGap - wheelTail - wheelFlat - 26
 
             let stretchCap = min(max(geo.size.height * (17.95 / 100), 108), 148)
             let stretchY = min(max(slackBelow - railBottom, 0), stretchCap)
@@ -61,19 +63,23 @@ struct MemoryTunerView: View {
             let wheelStretchScale = (wheelFlat + stretchY) / wheelFlat
 
             ZStack(alignment: .topLeading) {
-                resinChassisBackground
+                deviceChassisBackground
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    lcdPanel(width: geo.size.width - 56)
-                        .padding(.top, geo.safeAreaInsets.top + 20)
+                    statusLEDRow
+                        .padding(.top, geo.safeAreaInsets.top + 18)
+                        .padding(.horizontal, 28)
+
+                    lcdBezel(width: geo.size.width - 56)
+                        .padding(.top, 10)
                         .padding(.horizontal, 28)
 
                     Color.clear
                         .frame(height: wheelGap)
                         .frame(maxWidth: .infinity)
 
-                    wheelSection(diameter: wheelFlat)
+                    wheelMountSection(diameter: wheelFlat)
                         .scaleEffect(x: 1, y: wheelStretchScale, anchor: .center)
                         .padding(.bottom, wheelTail)
 
@@ -93,117 +99,250 @@ struct MemoryTunerView: View {
         }
     }
 
-    // MARK: - Chassis
+    // MARK: - Device chassis (web: brushed silver body)
 
-    private var resinChassisBackground: some View {
+    private var deviceChassisBackground: some View {
+        GeometryReader { geo in
+            ZStack {
+                LinearGradient(
+                    stops: [
+                        .init(color: Color(hex: "d6d6d6"), location: 0),
+                        .init(color: Color(hex: "bebebe"), location: 0.18),
+                        .init(color: Color(hex: "b6b6b6"), location: 0.38),
+                        .init(color: Color(hex: "c6c6c6"), location: 0.58),
+                        .init(color: Color(hex: "cecece"), location: 0.78),
+                        .init(color: Color(hex: "c2c2c2"), location: 1)
+                    ],
+                    startPoint: UnitPoint(x: 0.35, y: 0),
+                    endPoint: UnitPoint(x: 0.65, y: 1)
+                )
+
+                BrushedMetalGrain()
+                    .allowsHitTesting(false)
+
+                VStack(spacing: 0) {
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.18), Color.clear],
+                        startPoint: UnitPoint(x: 0.3, y: 0),
+                        endPoint: UnitPoint(x: 0.7, y: 0.55)
+                    )
+                    .frame(height: geo.size.height * 0.42)
+                    Spacer()
+                }
+                .allowsHitTesting(false)
+            }
+        }
+    }
+
+    // MARK: - Status LED (web: top-right green dot)
+
+    private var statusLEDRow: some View {
+        HStack {
+            Spacer()
+            Circle()
+                .fill(Color(hex: "44aa44"))
+                .frame(width: 6, height: 6)
+                .shadow(color: Color(hex: "44aa44").opacity(0.9), radius: 4)
+        }
+    }
+
+    // MARK: - LCD bezel + dot matrix screen
+
+    private func lcdBezel(width lcdW: CGFloat) -> some View {
         ZStack {
             LinearGradient(
-                colors: [
-                    Color(hex: "f2efe8"),
-                    Color(hex: "e8e4dc"),
-                    Color(hex: "ece8e0")
-                ],
-                startPoint: UnitPoint(x: 0.5, y: 0),
-                endPoint: UnitPoint(x: 0.5, y: 1)
+                colors: [Color(hex: "181818"), Color(hex: "121212")],
+                startPoint: .top,
+                endPoint: .bottom
             )
 
+            dotMatrixPanel(width: lcdW - 6)
+                .padding(3)
+        }
+        .frame(width: lcdW, height: lcdW * 0.42)
+        .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+        .shadow(color: .black.opacity(0.85), radius: 2.5, x: 0, y: 2)
+        .overlay {
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
+        }
+    }
+
+    private func dotMatrixPanel(width lcdW: CGFloat) -> some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color(hex: "0a1a0a"), Color(hex: "0d1f0d")],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+
+            ScanlineOverlay()
+                .allowsHitTesting(false)
+
             VStack(spacing: 0) {
-                Rectangle()
-                    .fill(Color.white.opacity(0.45))
-                    .frame(height: 1)
-                    .padding(.top, 1)
+                LinearGradient(
+                    colors: [Color(hex: "78ff78").opacity(0.04), Color.clear],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: lcdW * 0.42 * 0.35)
                 Spacer()
             }
             .allowsHitTesting(false)
-        }
-    }
 
-    // MARK: - LCD (5 slots)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("MEMORY TUNER")
+                        .font(.system(size: 9, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Color(hex: "4aff4a").opacity(0.85))
+                        .shadow(color: Color(hex: "00ff00").opacity(0.6), radius: 3)
+                    Spacer()
+                    Text("●STANDBY")
+                        .font(.system(size: 9, weight: .regular, design: .monospaced))
+                        .foregroundStyle(Color(hex: "3acc3a"))
+                        .shadow(color: Color(hex: "00cc00").opacity(0.5), radius: 2)
+                }
+                .padding(.bottom, 6)
+                .overlay(alignment: .bottom) {
+                    Rectangle()
+                        .fill(Color(hex: "1a4a1a"))
+                        .frame(height: 1)
+                }
 
-    private func lcdPanel(width lcdW: CGFloat) -> some View {
-        ZStack {
-            Color(hex: "080a08")
-
-            VStack(spacing: 0) {
                 ForEach(0..<Self.slots.count, id: \.self) { row in
-                    lcdRow(row: row, width: lcdW)
+                    dotMatrixRow(row: row)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 14)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
         }
-        .frame(width: lcdW, height: lcdW * 0.38)
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .strokeBorder(Color(hex: "1a1a1a"), lineWidth: 2)
+        }
+        .shadow(color: Color(hex: "005000").opacity(0.15), radius: 10)
     }
 
-    private func lcdRow(row: Int, width lcdW: CGFloat) -> some View {
+    private func dotMatrixRow(row: Int) -> some View {
         let slot = Self.slots[row]
         let isActive = row == activeSlotIndex
         let value = slot.options[slotValueIndices[row]]
 
-        return HStack(spacing: 0) {
-            Text(slot.label)
-                .font(.system(size: 12, weight: .regular, design: .rounded))
-                .foregroundStyle(isActive ? Color(hex: "5a7458") : Color(hex: "2e3a2c"))
-                .frame(width: lcdW * 0.2, alignment: .leading)
+        let labelColor = isActive ? Color(hex: "4aff4a") : Color(hex: "2a7a2a")
+        let valueColor = isActive ? Color(hex: "7fff7f") : Color(hex: "5adf5a")
+        let glowRadius: CGFloat = isActive ? 6 : 3
 
-            Spacer(minLength: 8)
+        return HStack(spacing: 4) {
+            Text(slot.label)
+                .font(.system(size: 9, weight: .regular, design: .monospaced))
+                .foregroundStyle(labelColor)
+                .frame(width: 28, alignment: .leading)
+
+            Text(":")
+                .font(.system(size: 8, weight: .regular, design: .monospaced))
+                .foregroundStyle(Color(hex: "1a4a1a"))
 
             Text(value)
-                .font(.system(size: 13, weight: .medium, design: .rounded))
-                .foregroundStyle(isActive ? Color(hex: "7a9a6e") : Color(hex: "2e3a2c"))
+                .font(.system(size: isActive && row == 0 ? 13 : 11, weight: .regular, design: .monospaced))
+                .foregroundStyle(valueColor)
+                .shadow(color: Color(hex: "00cc00").opacity(isActive ? 0.7 : 0.4), radius: glowRadius)
+
+            Spacer(minLength: 0)
         }
-        .padding(.horizontal, isActive ? 10 : 8)
-        .padding(.vertical, 9)
+        .padding(.vertical, 3)
+        .padding(.horizontal, isActive ? 6 : 0)
         .background {
             if isActive {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color(hex: "141a14").opacity(0.55))
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(Color(hex: "0a200a").opacity(0.55))
             }
         }
     }
 
-    // MARK: - Wheel
+    // MARK: - Wheel mount + black clickwheel
 
-    private func wheelSection(diameter: CGFloat) -> some View {
-        let ringW = diameter * 0.16
-        let innerD = diameter - 2 * ringW
-        let centerD = max(54, innerD - diameter * 0.24)
+    private func wheelMountSection(diameter: CGFloat) -> some View {
+        let mountPad: CGFloat = 9
+        let outerD = diameter + mountPad * 2
 
         return ZStack {
             Circle()
                 .fill(
-                    AngularGradient(
+                    RadialGradient(
                         colors: [
-                            Color(hex: "e4e0d8"),
-                            Color(hex: "f0ece4"),
-                            Color(hex: "dcd8d0"),
-                            Color(hex: "ece8e0"),
-                            Color(hex: "d8d4cc"),
-                            Color(hex: "e4e0d8")
+                            Color(hex: "c0c0c0"),
+                            Color(hex: "ababab"),
+                            Color(hex: "9e9e9e"),
+                            Color(hex: "b0b0b0")
                         ],
-                        center: .center
+                        center: UnitPoint(x: 0.48, y: 0.44),
+                        startRadius: 0,
+                        endRadius: outerD / 2
+                    )
+                )
+                .frame(width: outerD, height: outerD)
+                .shadow(color: .black.opacity(0.42), radius: 7, y: 4)
+                .overlay {
+                    Circle()
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.5), Color.black.opacity(0.22)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            ),
+                            lineWidth: 1
+                        )
+                }
+
+            blackClickwheel(diameter: diameter)
+        }
+        .frame(width: outerD, height: outerD)
+    }
+
+    private func blackClickwheel(diameter: CGFloat) -> some View {
+        let outerR = diameter / 2 - 2
+        let innerR = diameter * 0.46 / 2
+        let centerD = diameter * 0.3 * 2
+
+        return ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [Color(hex: "5a5a5a"), Color(hex: "3a3a3a"), Color(hex: "242424")],
+                        center: UnitPoint(x: 0.42, y: 0.38),
+                        startRadius: 0,
+                        endRadius: outerR
                     )
                 )
                 .frame(width: diameter, height: diameter)
+                .shadow(color: .black.opacity(0.55), radius: 5, y: 3)
+                .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
                 .overlay {
                     Circle()
-                        .strokeBorder(Color(hex: "b8b4ac"), lineWidth: 1)
+                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                        .padding(2)
                 }
 
+            blackWheelNotches(diameter: diameter)
+
             Circle()
-                .strokeBorder(Color(hex: "2a2a28").opacity(0.35), lineWidth: ringW * 0.55)
-                .frame(width: diameter - ringW * 0.9, height: diameter - ringW * 0.9)
+                .fill(
+                    RadialGradient(
+                        colors: [Color(hex: "404040"), Color(hex: "2e2e2e"), Color(hex: "222222")],
+                        center: UnitPoint(x: 0.44, y: 0.40),
+                        startRadius: 0,
+                        endRadius: innerR
+                    )
+                )
+                .frame(width: innerR * 2, height: innerR * 2)
+                .overlay {
+                    Ellipse()
+                        .fill(Color.white.opacity(0.04))
+                        .frame(width: innerR * 1.1, height: innerR * 0.36)
+                        .offset(x: -innerR * 0.15, y: -innerR * 0.2)
+                }
                 .allowsHitTesting(false)
-
-            Circle()
-                .fill(Color(hex: "ece8e0"))
-                .frame(width: innerD, height: innerD)
-                .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
-
-            wheelNotches(diameter: diameter)
-
-            directionalArrows(diameter: diameter, ringWidth: ringW, active: isWheelInteractActive)
 
             Circle()
                 .fill(Color.orange.opacity(0.001))
@@ -212,66 +351,75 @@ struct MemoryTunerView: View {
                 .gesture(wheelDragGesture(diameter: diameter))
 
             Button {
+                okPressed = true
                 emitGesture("decide")
                 let summary = currentCombinationText()
                 statusLine = "確定: \(summary)"
                 Self.log.info("decide \(summary, privacy: .public)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+                    okPressed = false
+                }
             } label: {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(hex: "f4f0e8"), Color(hex: "dcd8d0")],
-                            startPoint: .top,
-                            endPoint: .bottom
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: okPressed
+                                    ? [Color(hex: "282828"), Color(hex: "303030")]
+                                    : [Color(hex: "606060"), Color(hex: "4c4c4c"), Color(hex: "3a3a3a")],
+                                center: UnitPoint(x: okPressed ? 0.5 : 0.42, y: okPressed ? 0.58 : 0.36),
+                                startRadius: 0,
+                                endRadius: centerD / 2
+                            )
                         )
-                    )
-                    .overlay(Circle().strokeBorder(Color(hex: "c0bcb4"), lineWidth: 1))
-                    .frame(width: centerD, height: centerD)
-                    .shadow(color: .black.opacity(0.1), radius: 3, y: 2)
+                        .overlay {
+                            Circle()
+                                .strokeBorder(Color(hex: "141414").opacity(0.6), lineWidth: 1)
+                        }
+                        .shadow(
+                            color: .black.opacity(okPressed ? 0.7 : 0.5),
+                            radius: okPressed ? 2 : 4,
+                            y: okPressed ? 1 : 3
+                        )
+
+                    Text("OK")
+                        .font(.system(size: 10, weight: .medium, design: .default))
+                        .tracking(1.2)
+                        .foregroundStyle(
+                            okPressed
+                                ? Color(hex: "8c8c82").opacity(0.7)
+                                : Color(hex: "c3beb4").opacity(0.8)
+                        )
+                }
+                .frame(width: centerD, height: centerD)
             }
             .buttonStyle(WheelCenterPushStyle())
         }
         .frame(width: diameter, height: diameter)
     }
 
-    private func wheelNotches(diameter: CGFloat) -> some View {
-        ZStack {
-            ForEach(0..<12, id: \.self) { i in
-                let major = i % 3 == 0
-                let h = major ? CGFloat(6) : CGFloat(4)
-                RoundedRectangle(cornerRadius: 0.5, style: .continuous)
-                    .fill(Color(hex: "a8a49c"))
-                    .frame(width: 1.5, height: h)
-                    .offset(y: -diameter / 2 + h / 2 + 4)
-                    .rotationEffect(.degrees(Double(i) * 30))
+    private func blackWheelNotches(diameter: CGFloat) -> some View {
+        let outerR = diameter / 2 - 6
+        let notchR = outerR - 4
+
+        return ZStack {
+            ForEach(0..<Self.wheelNotchCount, id: \.self) { i in
+                let isAccent = i % 8 == 0
+                let w = isAccent ? 2.0 : 1.5
+                let h = isAccent ? 8.0 : 6.0
+                RoundedRectangle(cornerRadius: 0.8, style: .continuous)
+                    .fill(
+                        isAccent
+                            ? Color(hex: "c8c3b9").opacity(0.38)
+                            : Color(hex: "a5a096").opacity(0.22)
+                    )
+                    .frame(width: w, height: h)
+                    .offset(y: -notchR)
+                    .rotationEffect(.degrees(Double(i) / Double(Self.wheelNotchCount) * 360))
             }
         }
         .frame(width: diameter, height: diameter)
         .allowsHitTesting(false)
-    }
-
-    private func directionalArrows(diameter: CGFloat, ringWidth: CGFloat, active: Bool) -> some View {
-        let inset = ringWidth / 2 + 5
-        let opacity = active ? 0.42 : 0.22
-        return ZStack {
-            smallArrow().offset(y: -diameter / 2 + inset)
-            smallArrow().rotationEffect(.degrees(180)).offset(y: diameter / 2 - inset)
-            smallArrow().rotationEffect(.degrees(-90)).offset(x: -diameter / 2 + inset)
-            smallArrow().rotationEffect(.degrees(90)).offset(x: diameter / 2 - inset)
-        }
-        .foregroundStyle(Color(hex: "888480").opacity(opacity))
-        .frame(width: diameter, height: diameter)
-        .allowsHitTesting(false)
-    }
-
-    private func smallArrow() -> some View {
-        Path { path in
-            path.move(to: CGPoint(x: 3.5, y: 0))
-            path.addLine(to: CGPoint(x: 0, y: 6))
-            path.addLine(to: CGPoint(x: 7, y: 6))
-            path.closeSubpath()
-        }
-        .frame(width: 7, height: 6)
     }
 
     private func wheelDragGesture(diameter: CGFloat) -> some Gesture {
@@ -339,7 +487,7 @@ struct MemoryTunerView: View {
         emitGesture("wheel")
     }
 
-    // MARK: - Bottom buttons
+    // MARK: - Bottom buttons (非表示・将来用に保持)
 
     private func bottomButtons(width w: CGFloat) -> some View {
         HStack(spacing: w * 0.04) {
@@ -407,12 +555,46 @@ struct MemoryTunerView: View {
             }
         }
         .font(.system(size: 9, design: .monospaced))
-        .foregroundStyle(Color(hex: "7a9a6e").opacity(0.85))
+        .foregroundStyle(Color(hex: "4aff4a").opacity(0.85))
         .padding(6)
         .background(Color.black.opacity(0.55))
         .cornerRadius(4)
     }
     #endif
+}
+
+// MARK: - Decorative overlays
+
+private struct BrushedMetalGrain: View {
+    var body: some View {
+        Canvas { context, size in
+            var y: CGFloat = 0
+            while y < size.height {
+                let rect = CGRect(x: 0, y: y, width: size.width, height: 2)
+                context.fill(
+                    Path(rect),
+                    with: .color(Color.white.opacity(0.038))
+                )
+                y += 4
+            }
+        }
+    }
+}
+
+private struct ScanlineOverlay: View {
+    var body: some View {
+        Canvas { context, size in
+            var y: CGFloat = 0
+            while y < size.height {
+                let rect = CGRect(x: 0, y: y, width: size.width, height: 2)
+                context.fill(
+                    Path(rect),
+                    with: .color(Color.black.opacity(0.18))
+                )
+                y += 4
+            }
+        }
+    }
 }
 
 // MARK: - Button styles
