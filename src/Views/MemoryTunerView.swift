@@ -439,10 +439,11 @@ struct MemoryTunerView: View {
     }
 
     private func blackClickwheel(diameter: CGFloat) -> some View {
-        let outerR = diameter / 2 - 2
-        let innerR = diameter * 0.46 / 2
-        let centerD = diameter * 0.3 * 2
-        let okTapD = centerD + 20
+        let wheelD = diameter
+        let outerR = wheelD / 2 - 2
+        let innerR = wheelD * 0.46 / 2
+        let centerD = wheelD * 0.3 * 2
+        let okTapD = wheelD * 0.45
         let ringInnerExclude = okTapD / 2 + 10
 
         return ZStack {
@@ -455,7 +456,7 @@ struct MemoryTunerView: View {
                         endRadius: outerR
                     )
                 )
-                .frame(width: diameter, height: diameter)
+                .frame(width: wheelD, height: wheelD)
                 .shadow(color: .black.opacity(0.55), radius: 5, y: 3)
                 .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
                 .overlay {
@@ -465,7 +466,7 @@ struct MemoryTunerView: View {
                 }
                 .allowsHitTesting(false)
 
-            blackWheelNotches(diameter: diameter)
+            blackWheelNotches(diameter: wheelD)
                 .rotationEffect(.degrees(wheelVisualRotationDegrees))
 
             Circle()
@@ -490,26 +491,27 @@ struct MemoryTunerView: View {
                 .scaleEffect(okPressed ? 0.96 : 1)
                 .animation(.easeOut(duration: 0.1), value: okPressed)
                 .allowsHitTesting(false)
-                .zIndex(2)
 
             WheelRingHitShape(outerRadius: outerR, innerRadius: ringInnerExclude)
                 .fill(Color.orange.opacity(0.001))
-                .frame(width: diameter, height: diameter)
+                .frame(width: wheelD, height: wheelD)
                 .contentShape(WheelRingHitShape(outerRadius: outerR, innerRadius: ringInnerExclude))
-                .gesture(wheelDragGesture(diameter: diameter))
+                .gesture(wheelDragGesture(diameter: wheelD))
                 .zIndex(1)
 
             Button {
-                handleOK()
+                print("CENTER OK BUTTON TAPPED")
+                lastGesture = "ok"
+                isPhotoPickerPresented = true
             } label: {
-                Color.white.opacity(0.001)
+                Color.red.opacity(0.15)
                     .frame(width: okTapD, height: okTapD)
-                    .contentShape(Circle())
             }
             .buttonStyle(.plain)
-            .zIndex(100)
+            .contentShape(Rectangle())
+            .zIndex(9999)
         }
-        .frame(width: diameter, height: diameter)
+        .frame(width: wheelD, height: wheelD)
     }
 
     private func okCenterVisual(centerD: CGFloat) -> some View {
