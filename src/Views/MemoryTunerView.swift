@@ -49,9 +49,14 @@ struct MemoryTunerView: View {
     @State private var isProcessing = false
 
     @State private var wheelVisualRotationDegrees: Double = 0
+    @State private var lastWheelTouchAngleDegrees: Double?
+    @State private var wheelAngleAccumulator: Double = 0
 
     private static let wheelStepRotationDegrees: Double = 10
+    private static let wheelValueNotchDegrees: Double = 20
     private static let wheelRotationAnimation = Animation.easeOut(duration: 0.12)
+    private static let wheelCenterHitRadiusRatio: CGFloat = 0.24
+    private static let wheelRingOuterRadiusRatio: CGFloat = 0.50
 
     init() {
         _slotValueIndices = State(initialValue: Self.slots.map(\.defaultIndex))
@@ -479,14 +484,29 @@ struct MemoryTunerView: View {
                 }
                 .allowsHitTesting(false)
 
+            wheelRingGestureLayer(diameter: wheelD)
+
+            okCenterButton(centerD: centerD)
+        }
+        .frame(width: wheelD, height: wheelD)
+    }
+
+    private func wheelRingGestureLayer(diameter wheelD: CGFloat) -> some View {
+        Color.clear
+            .frame(width: wheelD, height: wheelD)
+            .contentShape(Circle())
+            .gesture(wheelRotationGesture(diameter: wheelD))
+    }
+
+    private func okCenterButton(centerD: CGFloat) -> some View {
+        Button(action: handleOK) {
             okCenterVisual(centerD: centerD)
                 .scaleEffect(okPressed ? 0.96 : 1)
                 .animation(.easeOut(duration: 0.1), value: okPressed)
-                .allowsHitTesting(false)
         }
-        .frame(width: wheelD, height: wheelD)
+        .buttonStyle(.plain)
+        .frame(width: centerD * 1.08, height: centerD * 1.08)
         .contentShape(Circle())
-        .gesture(unifiedWheelGesture(diameter: wheelD))
     }
 
     private func okCenterVisual(centerD: CGFloat) -> some View {
@@ -548,27 +568,65 @@ struct MemoryTunerView: View {
         .allowsHitTesting(false)
     }
 
-    private func unifiedWheelGesture(diameter: CGFloat) -> some Gesture {
+    private func wheelRotationGesture(diameter wheelD: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .local)
-            .onEnded { value in
-                let wheelD = diameter
+            .onChanged { value in
                 let center = CGPoint(x: wheelD / 2, y: wheelD / 2)
-                let dx = value.startLocation.x - center.x
-                let dy = value.startLocation.y - center.y
+                let touch = value.location
+                let dx = touch.x - center.x
+                let dy = touch.y - center.y
                 let distance = sqrt(dx * dx + dy * dy)
 
-                if distance <= wheelD * 0.23 {
-                    print("CENTER OK HIT")
-                    handleOK()
-                } else if distance <= wheelD * 0.48 {
-                    if dx >= 0 {
-                        stepActiveControlValue(direction: 1)
-                    } else {
-                        stepActiveControlValue(direction: -1)
-                    }
-                    lastGesture = "wheel"
+                guard isOnWheelRing(distance: distance, wheelDiameter: wheelD) else { return }
+
+                let angleDeg = atan2(dy, dx) * 180 / .pi
+                if let previous = lastWheelTouchAngleDegrees {
+                    var deltaDeg = angleDeg - previous
+                    if deltaDeg > 180 { deltaDeg -= 360 }
+                    if deltaDeg < -180 { deltaDeg += 360 }
+                    applyWheelAngleDelta(deltaDeg)
+                }
+                lastWheelTouchAngleDegrees = angleDeg
+            }
+            .onEnded { value in
+                let center = CGPoint(x: wheelD / 2, y: wheelD / 2)
+                let startDx = value.startLocation.x - center.x
+                let startDy = value.startLocation.y - center.y
+                let startDistance = sqrt(startDx * startDx + startDy * startDy)
+                let moved = hypot(value.translation.width, value.translation.height)
+
+                defer {
+                    lastWheelTouchAngleDegrees = nil
+                    wheelAngleAccumulator = 0
+                }
+
+                guard isOnWheelRing(distance: startDistance, wheelDiameter: wheelD) else { return }
+                guard moved < 12 else { return }
+
+                if startDx >= 0 {
+                    stepActiveControlValue(direction: 1)
+                } else {
+                    stepActiveControlValue(direction: -1)
                 }
             }
+    }
+
+    private func isOnWheelRing(distance: CGFloat, wheelDiameter wheelD: CGFloat) -> Bool {
+        let inner = wheelD * Self.wheelCenterHitRadiusRatio
+        let outer = wheelD * Self.wheelRingOuterRadiusRatio
+        return distance >= inner && distance <= outer
+    }
+
+    private func applyWheelAngleDelta(_ deltaDeg: Double) {
+        wheelAngleAccumulator += deltaDeg
+        while wheelAngleAccumulator >= Self.wheelValueNotchDegrees {
+            wheelAngleAccumulator -= Self.wheelValueNotchDegrees
+            stepActiveControlValue(direction: 1)
+        }
+        while wheelAngleAccumulator <= -Self.wheelValueNotchDegrees {
+            wheelAngleAccumulator += Self.wheelValueNotchDegrees
+            stepActiveControlValue(direction: -1)
+        }
     }
 
     private func stepActiveControlValue(direction: Int) {
@@ -578,9 +636,9 @@ struct MemoryTunerView: View {
         guard count > 0 else { return }
         var idx = slotValueIndices[row]
         idx = (idx + direction + count) % count
+        slotValueIndices[row] = idx
         withAnimation(Self.wheelRotationAnimation) {
             wheelVisualRotationDegrees += Double(direction) * Self.wheelStepRotationDegrees
-            slotValueIndices[row] = idx
         }
         emitGesture("wheel")
     }
@@ -642,7 +700,9 @@ struct MemoryTunerView: View {
         let summary = currentCombinationText()
         statusLine = "選択: \(summary)"
         Self.log.info("handleOK photo picker start \(summary, privacy: .public)")
-        isPhotoPickerPresented = true
+        DispatchQueue.main.async {
+            isPhotoPickerPresented = true
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
             okPressed = false
         }
