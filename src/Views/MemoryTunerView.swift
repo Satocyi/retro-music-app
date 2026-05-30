@@ -33,7 +33,6 @@ struct MemoryTunerView: View {
         SlotDefinition(label: "質", options: ["古いデジカメ", "低彩度フィルム", "くすんだ緑", "夜の室内", "色あせ"], defaultIndex: 0)
     ]
 
-    private static let notchAngle: Double = 30
     private static let wheelNotchCount = 40
 
     @State private var screenPhase: ScreenPhase = .tuning
@@ -49,11 +48,6 @@ struct MemoryTunerView: View {
     @State private var filterPreviewImage: UIImage?
     @State private var isProcessing = false
 
-    @State private var lastTouchAngleDegrees: Double?
-    @State private var lastSampleDate: Date?
-    @State private var angularVelocityDegPerSec: Double = 0
-    @State private var notchAccumulator: Double = 0
-    @State private var isWheelInteractActive = false
     @State private var wheelVisualRotationDegrees: Double = 0
 
     private static let wheelStepRotationDegrees: Double = 10
@@ -443,8 +437,6 @@ struct MemoryTunerView: View {
         let outerR = wheelD / 2 - 2
         let innerR = wheelD * 0.46 / 2
         let centerD = wheelD * 0.3 * 2
-        let okTapD = wheelD * 0.45
-        let ringInnerExclude = okTapD / 2 + 10
 
         return ZStack {
             Circle()
@@ -491,27 +483,10 @@ struct MemoryTunerView: View {
                 .scaleEffect(okPressed ? 0.96 : 1)
                 .animation(.easeOut(duration: 0.1), value: okPressed)
                 .allowsHitTesting(false)
-
-            WheelRingHitShape(outerRadius: outerR, innerRadius: ringInnerExclude)
-                .fill(Color.orange.opacity(0.001))
-                .frame(width: wheelD, height: wheelD)
-                .contentShape(WheelRingHitShape(outerRadius: outerR, innerRadius: ringInnerExclude))
-                .gesture(wheelDragGesture(diameter: wheelD))
-                .zIndex(1)
-
-            Button {
-                print("CENTER OK BUTTON TAPPED")
-                lastGesture = "ok"
-                isPhotoPickerPresented = true
-            } label: {
-                Color.red.opacity(0.15)
-                    .frame(width: okTapD, height: okTapD)
-            }
-            .buttonStyle(.plain)
-            .contentShape(Rectangle())
-            .zIndex(9999)
         }
         .frame(width: wheelD, height: wheelD)
+        .contentShape(Circle())
+        .gesture(unifiedWheelGesture(diameter: wheelD))
     }
 
     private func okCenterVisual(centerD: CGFloat) -> some View {
@@ -573,59 +548,27 @@ struct MemoryTunerView: View {
         .allowsHitTesting(false)
     }
 
-    private func wheelDragGesture(diameter: CGFloat) -> some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .local)
-            .onChanged { value in
-                isWheelInteractActive = true
-                let center = CGPoint(x: diameter / 2, y: diameter / 2)
-                let angleRad = atan2(value.location.y - center.y, value.location.x - center.x)
-                let angleDeg = angleRad * 180 / .pi
+    private func unifiedWheelGesture(diameter: CGFloat) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onEnded { value in
+                let wheelD = diameter
+                let center = CGPoint(x: wheelD / 2, y: wheelD / 2)
+                let dx = value.startLocation.x - center.x
+                let dy = value.startLocation.y - center.y
+                let distance = sqrt(dx * dx + dy * dy)
 
-                if let previous = lastTouchAngleDegrees {
-                    var delta = angleDeg - previous
-                    if delta > 180 { delta -= 360 }
-                    if delta < -180 { delta += 360 }
-
-                    let now = Date()
-                    if let prior = lastSampleDate {
-                        let dt = now.timeIntervalSince(prior)
-                        if dt > 0.001 { angularVelocityDegPerSec = delta / dt }
+                if distance <= wheelD * 0.23 {
+                    print("CENTER OK HIT")
+                    handleOK()
+                } else if distance <= wheelD * 0.48 {
+                    if dx >= 0 {
+                        stepActiveControlValue(direction: 1)
+                    } else {
+                        stepActiveControlValue(direction: -1)
                     }
-                    lastSampleDate = now
-                    applyWheelDelta(delta)
-                } else {
-                    lastSampleDate = Date()
+                    lastGesture = "wheel"
                 }
-                lastTouchAngleDegrees = angleDeg
             }
-            .onEnded { _ in
-                lastTouchAngleDegrees = nil
-                lastSampleDate = nil
-                isWheelInteractActive = false
-                applyWeakInertia()
-                angularVelocityDegPerSec = 0
-            }
-    }
-
-    private func applyWheelDelta(_ delta: Double) {
-        notchAccumulator += delta
-        while notchAccumulator >= Self.notchAngle {
-            notchAccumulator -= Self.notchAngle
-            stepActiveControlValue(direction: 1)
-        }
-        while notchAccumulator <= -Self.notchAngle {
-            notchAccumulator += Self.notchAngle
-            stepActiveControlValue(direction: -1)
-        }
-    }
-
-    private func applyWeakInertia() {
-        let magnitude = abs(angularVelocityDegPerSec)
-        guard magnitude > Self.notchAngle * (4.0 / 3.0) else { return }
-        var extra = angularVelocityDegPerSec * 0.05
-        let cap = Self.notchAngle * 0.75
-        extra = min(max(extra, -cap), cap)
-        applyWheelDelta(extra)
     }
 
     private func stepActiveControlValue(direction: Int) {
@@ -758,31 +701,6 @@ struct MemoryTunerView: View {
 }
 
 // MARK: - Decorative overlays
-
-private struct WheelRingHitShape: Shape {
-    var outerRadius: CGFloat
-    var innerRadius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        var path = Path()
-        path.addArc(
-            center: center,
-            radius: outerRadius,
-            startAngle: .degrees(0),
-            endAngle: .degrees(360),
-            clockwise: false
-        )
-        path.addArc(
-            center: center,
-            radius: innerRadius,
-            startAngle: .degrees(0),
-            endAngle: .degrees(360),
-            clockwise: true
-        )
-        return path
-    }
-}
 
 private struct BrushedMetalGrain: View {
     var body: some View {
