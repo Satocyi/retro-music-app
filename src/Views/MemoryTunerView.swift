@@ -51,9 +51,10 @@ struct MemoryTunerView: View {
     @State private var wheelVisualRotationDegrees: Double = 0
     @State private var lastWheelTouchAngleDegrees: Double?
     @State private var wheelAngleAccumulator: Double = 0
+    @State private var lastWheelDirection: Int = 0
 
     private static let wheelStepRotationDegrees: Double = 10
-    private static let wheelValueNotchDegrees: Double = 20
+    private static let wheelValueNotchDegrees: Double = 11
     private static let wheelRotationAnimation = Animation.easeOut(duration: 0.12)
     private static let wheelCenterHitRadiusRatio: CGFloat = 0.24
     private static let wheelRingOuterRadiusRatio: CGFloat = 0.50
@@ -630,16 +631,25 @@ struct MemoryTunerView: View {
     }
 
     private func stepActiveControlValue(direction: Int) {
+        guard direction == 1 || direction == -1 else { return }
         let row = activeControl.rawValue
         let slot = Self.slots[row]
         let count = slot.options.count
         guard count > 0 else { return }
         var idx = slotValueIndices[row]
         idx = (idx + direction + count) % count
-        slotValueIndices[row] = idx
+
+        var valueTransaction = Transaction()
+        valueTransaction.disablesAnimations = true
+        withTransaction(valueTransaction) {
+            slotValueIndices[row] = idx
+        }
+
         withAnimation(Self.wheelRotationAnimation) {
             wheelVisualRotationDegrees += Double(direction) * Self.wheelStepRotationDegrees
         }
+
+        lastWheelDirection = direction
         emitGesture("wheel")
     }
 
@@ -746,6 +756,9 @@ struct MemoryTunerView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text("phase=\(screenPhase == .tuning ? "tuning" : "result")")
             Text("lastGesture=\(lastGesture)")
+            if lastGesture == "wheel" {
+                Text("direction=\(lastWheelDirection > 0 ? "+" : "")\(lastWheelDirection)")
+            }
             if !statusLine.isEmpty {
                 Text(statusLine)
                     .lineLimit(2)
