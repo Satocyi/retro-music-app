@@ -15,6 +15,7 @@
 		a1f2e3d45b6c708090a1b2c01 /* MemoryTunerImageShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */; };
 		b3c4d5e6f7081920a3b4c5d602 /* MemoryTunerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = b3c4d5e6f7081920a3b4c5d601 /* MemoryTunerView.swift */; };
 		c4d5e6f7081920a3b4c5d60301 /* PhotoFilterProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = c4d5e6f7081920a3b4c5d60300 /* PhotoFilterProcessor.swift */; };
+		e5f6a7b8091920a3b4c5d60401 /* PhotoMVPDebugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = e5f6a7b8091920a3b4c5d60400 /* PhotoMVPDebugView.swift */; };
 		b2f3e456c7d8191a2b3c4d501 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = b2f3e456c7d8191a2b3c4d500 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -29,6 +30,7 @@
 		a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryTunerImageShellView.swift; sourceTree = "<group>"; };
 		b3c4d5e6f7081920a3b4c5d601 /* MemoryTunerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryTunerView.swift; sourceTree = "<group>"; };
 		c4d5e6f7081920a3b4c5d60300 /* PhotoFilterProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoFilterProcessor.swift; sourceTree = "<group>"; };
+		e5f6a7b8091920a3b4c5d60400 /* PhotoMVPDebugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoMVPDebugView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -101,6 +103,7 @@
 			children = (
 				a1f2e3d45b6c708090a1b2c00 /* MemoryTunerImageShellView.swift */,
 				b3c4d5e6f7081920a3b4c5d601 /* MemoryTunerView.swift */,
+				e5f6a7b8091920a3b4c5d60400 /* PhotoMVPDebugView.swift */,
 				8da96ba1414be5bca7b7175f /* WheelView.swift */,
 			);
 			path = Views;
@@ -191,6 +194,7 @@
 				a1f2e3d45b6c708090a1b2c01 /* MemoryTunerImageShellView.swift in Sources */,
 				b3c4d5e6f7081920a3b4c5d602 /* MemoryTunerView.swift in Sources */,
 				c4d5e6f7081920a3b4c5d60301 /* PhotoFilterProcessor.swift in Sources */,
+				e5f6a7b8091920a3b4c5d60401 /* PhotoMVPDebugView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

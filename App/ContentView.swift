@@ -5,6 +5,7 @@ import SwiftUI
 
 struct ContentView: View {
     var body: some View {
-        MemoryTunerView()
+        // TODO: Gate 1 検証後は MemoryTunerView() に戻す
+        PhotoMVPDebugView()
     }
 }
