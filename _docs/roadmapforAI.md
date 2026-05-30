@@ -12,6 +12,8 @@
 - Phase 3「プロトタイプ実装」進行中
 - MemoryCard（3行・日本語・端ループ）：実装済み（1c2abc8）
 - web版黒ホイールUIプロトタイプ：作成済み（66cdbf7・`web/`・ビルド成功）
+- SwiftUI見た目移植第一段階：完了（0dfff31・`src/Views/MemoryTunerView.swift`）
+- Mac / Xcode / iOSシミュレーターでのビルド確認：未実施
 
 ---
 
@@ -68,6 +70,8 @@
 - [x] ホイールの端ループ仕様を実装する（1c2abc8・サトシ判断済み）
 - [x] WheelItem → MemoryCard（3行・日本語）への置き換え（1c2abc8）
 - [x] web版黒ホイールUIプロトタイプ作成（66cdbf7・Next.js + Tailwind + TypeScript・`web/`）
+- [x] SwiftUI見た目移植第一段階（0dfff31・`src/Views/MemoryTunerView.swift`・web版黒ホイールUI基準）
+- [ ] Mac / Xcode / iOSシミュレーターでビルド・表示確認
 - [ ] web版を基準にSwiftUIへ移植するか判断（サトシ判断事項）
 - [ ] ノッチ角・慣性のチューニング（実機メモ：30°はやや軽い）
 - [ ] haptic / tick音の導入判断（サトシ判断事項）
